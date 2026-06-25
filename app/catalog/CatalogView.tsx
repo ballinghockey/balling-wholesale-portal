@@ -1,3 +1,8 @@
+bash
+
+cat /home/claude/balling-portal/app/catalog/CatalogView.tsx
+Salida
+
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
@@ -28,10 +33,38 @@ export default function CatalogView({
     [groups, activeCategory]
   )
 
-  const cartCount = useMemo(
-    () => Object.values(cart).reduce((sum, qty) => sum + qty, 0),
-    [cart]
-  )
+  // Mapa rápido sku -> variant, para calcular totales sin recorrer todo de nuevo
+  const variantBySku = useMemo(() => {
+    const map = new Map<string, ProductGroupWithVariants['variants'][number] & { currency: string }>()
+    for (const g of groups) {
+      for (const v of g.variants) {
+        map.set(v.sku, v)
+      }
+    }
+    return map
+  }, [groups])
+
+  const { cartCount, subtotal, currencySymbol } = useMemo(() => {
+    let count = 0
+    let total = 0
+    let symbol = '£'
+    for (const [sku, qty] of Object.entries(cart)) {
+      if (qty <= 0) continue
+      const variant = variantBySku.get(sku)
+      if (!variant) continue
+      count += qty
+      total += qty * variant.finalUnitPrice
+      symbol = variant.currency === 'GBP' ? '£' : '€'
+    }
+    return { cartCount: count, subtotal: total, currencySymbol: symbol }
+  }, [cart, variantBySku])
+
+  // Descuento del cliente para la categoría activa (todos los productos
+  // de una misma categoría comparten el mismo % de descuento de cliente)
+  const activeCategoryDiscount = useMemo(() => {
+    const sample = groups.find((g) => g.category === activeCategory)
+    return sample?.variants[0]?.customerDiscountPct ?? 0
+  }, [groups, activeCategory])
 
   async function updateQty(sku: string, qty: number) {
     setCart((prev) => ({ ...prev, [sku]: qty }))
@@ -49,7 +82,7 @@ export default function CatalogView({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-24">
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-neutral-900">Catálogo</h1>
@@ -68,7 +101,7 @@ export default function CatalogView({
         </a>
       </header>
 
-      <nav className="flex gap-1 mb-6 border-b border-neutral-200 overflow-x-auto">
+      <nav className="flex gap-1 mb-2 border-b border-neutral-200 overflow-x-auto">
         {CATEGORIES.map((cat) => (
           <button
             key={cat}
@@ -84,7 +117,13 @@ export default function CatalogView({
         ))}
       </nav>
 
-      <div className="space-y-4">
+      {activeCategoryDiscount > 0 && (
+        <p className="text-xs text-emerald-700 bg-emerald-50 inline-block px-2.5 py-1 rounded-md mb-6 mt-3">
+          Tu descuento en {activeCategory}: {activeCategoryDiscount}%
+        </p>
+      )}
+
+      <div className={`space-y-4 ${activeCategoryDiscount > 0 ? '' : 'mt-6'}`}>
         {visibleGroups.length === 0 && (
           <p className="text-sm text-neutral-400 py-12 text-center">
             No hay productos en esta categoría todavía.
@@ -156,6 +195,19 @@ export default function CatalogView({
           </div>
         ))}
       </div>
+
+      {cartCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <span className="text-sm text-neutral-500">
+              {cartCount} {cartCount === 1 ? 'unidad' : 'unidades'} en tu pedido
+            </span>
+            <span className="text-lg font-semibold text-neutral-900">
+              Subtotal: {currencySymbol}{subtotal.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
