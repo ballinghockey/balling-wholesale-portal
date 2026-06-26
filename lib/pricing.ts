@@ -1,7 +1,7 @@
 // Motor de pricing — replica la lógica validada en Google Sheets:
 // Precio lista -> Descuento cliente (por categoría) -> Promo activa -> Precio final
 
-export type Category = 'Sticks' | 'Bags' | 'Accessories' | 'Apparel' | 'Shoes'
+export type Category = 'Sticks' | 'Bags' | 'Accessories' | 'Apparel' | 'Shoes' | 'Padel'
 
 export type Customer = {
   customer_id: string
@@ -45,6 +45,7 @@ const CATEGORY_FIELD_MAP: Record<Category, keyof CustomerDiscounts> = {
   Accessories: 'accessories_pct',
   Apparel: 'apparel_pct',
   Shoes: 'shoes_pct',
+  Padel: 'apparel_pct', // temporal: no hay columna padel_pct todavía
 }
 
 export function getCustomerDiscountForCategory(
