@@ -139,7 +139,7 @@ export default function CatalogView({
                 src={group.imageUrl}
                 alt={group.productName}
                 onClick={() => setZoomedImage({ url: group.imageUrl, alt: group.productName })}
-                className="w-20 h-20 rounded-lg object-cover bg-neutral-100 flex-shrink-0 cursor-zoom-in hover:opacity-90 transition-opacity"
+                className="w-20 h-20 rounded-lg object-contain bg-neutral-100 p-1.5 flex-shrink-0 cursor-zoom-in hover:opacity-90 transition-opacity"
               />
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-neutral-900">{group.productName}</h3>
