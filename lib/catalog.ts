@@ -27,6 +27,8 @@ export type ProductGroupWithVariants = {
   productGroup: string
   productName: string
   category: Category
+  subcategory: string
+  sortOrder: number
   imageUrl: string
   variants: SizeVariant[]
 }
@@ -70,7 +72,7 @@ export async function getCatalogForCustomer(
 
   const groups = new Map<string, ProductGroupWithVariants>()
 
-  for (const p of products as Product[]) {
+  for (const p of products as (Product & { subcategory?: string; sort_order?: number })[]) {
     const price = calculatePrice(p, customer, discounts, promoList)
     const stock = stockMap.get(p.sku) ?? 0
 
@@ -96,6 +98,8 @@ export async function getCatalogForCustomer(
         productGroup: p.product_group,
         productName: p.product_name,
         category: p.category,
+        subcategory: p.subcategory ?? '',
+        sortOrder: p.sort_order ?? 0,
         imageUrl: p.image_url,
         variants: [variant],
       })
@@ -107,7 +111,11 @@ export async function getCatalogForCustomer(
     group.variants.sort((a, b) => a.size.localeCompare(b.size, undefined, { numeric: true }))
   }
 
-  return Array.from(groups.values()).sort((a, b) => a.productName.localeCompare(b.productName))
+  // Orden final: primero por sort_order (menor = primero), después alfabético
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+    return a.productName.localeCompare(b.productName)
+  })
 }
 
 export async function getDraftCartForCustomer(customerId: string) {
