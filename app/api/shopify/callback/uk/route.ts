@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// This route handles the OAuth callback from Shopify UK store.
-// After authorizing, Shopify redirects here with a ?code= param.
-// We exchange that code for a permanent access token and display it
-// so it can be saved as a Vercel environment variable.
-
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
@@ -30,18 +25,36 @@ export async function GET(req: NextRequest) {
       client_id: clientId,
       client_secret: clientSecret,
       code,
-      redirect_uri: redirectUri,
     }),
   })
 
-  const tokenData = await tokenRes.json()
+  const raw = await tokenRes.text()
 
-  if (!tokenRes.ok || !tokenData.access_token) {
-    return NextResponse.json({ error: 'Token exchange failed', details: tokenData }, { status: 500 })
+  let tokenData: any
+  try {
+    tokenData = JSON.parse(raw)
+  } catch {
+    return new NextResponse(
+      `<html><body style="font-family:monospace;padding:40px">
+        <h2>❌ Shopify returned unexpected response</h2>
+        <p>Status: ${tokenRes.status}</p>
+        <pre style="background:#f5f5f5;padding:16px;overflow:auto">${raw}</pre>
+        <p>Check that SHOPIFY_UK_CLIENT_SECRET is correctly set in Vercel.</p>
+      </body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    )
   }
 
-  // Display the token so it can be saved to Vercel env vars.
-  // This page is only ever seen by you (the admin), never by customers.
+  if (!tokenData.access_token) {
+    return new NextResponse(
+      `<html><body style="font-family:monospace;padding:40px">
+        <h2>❌ Token exchange failed</h2>
+        <pre style="background:#f5f5f5;padding:16px">${JSON.stringify(tokenData, null, 2)}</pre>
+      </body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    )
+  }
+
   return new NextResponse(
     `<html><body style="font-family:monospace;padding:40px;max-width:600px">
       <h2>✅ Shopify UK Access Token Generated</h2>
