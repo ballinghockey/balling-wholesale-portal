@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
   const shop = 'balling-hockey-global.myshopify.com'
   const clientId = '51b17c06883f569712acaa9bf721bd5e'
   const clientSecret = process.env.SHOPIFY_EU_CLIENT_SECRET!
-  const redirectUri = 'https://balling-wholesale-portal.vercel.app/api/shopify/callback/eu'
 
   const tokenRes = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: 'POST',
@@ -25,14 +24,34 @@ export async function GET(req: NextRequest) {
       client_id: clientId,
       client_secret: clientSecret,
       code,
-      redirect_uri: redirectUri,
     }),
   })
 
-  const tokenData = await tokenRes.json()
+  const raw = await tokenRes.text()
 
-  if (!tokenRes.ok || !tokenData.access_token) {
-    return NextResponse.json({ error: 'Token exchange failed', details: tokenData }, { status: 500 })
+  let tokenData: any
+  try {
+    tokenData = JSON.parse(raw)
+  } catch {
+    return new NextResponse(
+      `<html><body style="font-family:monospace;padding:40px">
+        <h2>❌ Shopify returned unexpected response</h2>
+        <p>Status: ${tokenRes.status}</p>
+        <pre style="background:#f5f5f5;padding:16px;overflow:auto">${raw}</pre>
+        <p>Check that SHOPIFY_EU_CLIENT_SECRET is correctly set in Vercel.</p>
+      </body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    )
+  }
+
+  if (!tokenData.access_token) {
+    return new NextResponse(
+      `<html><body style="font-family:monospace;padding:40px">
+        <h2>❌ Token exchange failed</h2>
+        <pre style="background:#f5f5f5;padding:16px">${JSON.stringify(tokenData, null, 2)}</pre>
+      </body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    )
   }
 
   return new NextResponse(
