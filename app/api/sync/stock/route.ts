@@ -50,7 +50,6 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
 
     const variants = data?.data?.productVariants
     if (!variants) {
-      console.error(`[${shop}] No variants in response:`, JSON.stringify(data))
       throw new Error(`No variants in response`)
     }
 
@@ -69,9 +68,23 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
   return stockMap
 }
 
-async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string, number>) {
-  const rows = Array.from(stockMap.entries()).map(([sku, stock]) => ({ sku, stock }))
-  console.log(`[${table}] Upserting ${rows.length} rows`)
+async function getKnownSkus(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('sku')
+    .eq('active', true)
+
+  if (error) throw new Error(`Failed to fetch SKUs: ${error.message}`)
+  return new Set((data ?? []).map((r: { sku: string }) => r.sku))
+}
+
+async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string, number>, knownSkus: Set<string>) {
+  const rows = Array.from(stockMap.entries())
+    .filter(([sku]) => knownSkus.has(sku))
+    .map(([sku, stock]) => ({ sku, stock }))
+
+  const skipped = stockMap.size - rows.length
+  console.log(`[${table}] Upserting ${rows.length} rows (skipped ${skipped} unknown SKUs)`)
 
   const batchSize = 200
   for (let i = 0; i < rows.length; i += batchSize) {
@@ -81,7 +94,7 @@ async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string,
       .upsert(batch, { onConflict: 'sku' })
 
     if (error) {
-      console.error(`[${table}] Upsert error:`, error.message, error.details)
+      console.error(`[${table}] Upsert error:`, error.message)
       throw new Error(`Supabase upsert error on ${table}: ${error.message}`)
     }
   }
@@ -103,13 +116,16 @@ export async function GET(req: NextRequest) {
 
   console.log('[sync-stock] Starting stock sync...')
 
+  // Get all known SKUs from our products table to avoid FK violations
+  const knownSkus = await getKnownSkus()
+  console.log(`[sync-stock] Known SKUs in products table: ${knownSkus.size}`)
+
   const results: Record<string, { status: string; synced?: number; error?: string }> = {}
 
   try {
     const ukToken = process.env.SHOPIFY_UK_ACCESS_TOKEN!
-    console.log('[sync-stock] UK token present:', !!ukToken)
     const ukStock = await fetchShopifyInventory('balling-eu-manegit.myshopify.com', ukToken)
-    const ukCount = await upsertStock('stock_uk', ukStock)
+    const ukCount = await upsertStock('stock_uk', ukStock, knownSkus)
     results.uk = { synced: ukCount, status: 'ok' }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -119,9 +135,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const euToken = process.env.SHOPIFY_EU_ACCESS_TOKEN!
-    console.log('[sync-stock] EU token present:', !!euToken)
     const euStock = await fetchShopifyInventory('balling-hockey-global.myshopify.com', euToken)
-    const euCount = await upsertStock('stock_eu', euStock)
+    const euCount = await upsertStock('stock_eu', euStock, knownSkus)
     results.eu = { synced: euCount, status: 'ok' }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
