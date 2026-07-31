@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// This route is called by the Vercel cron job every 2 hours.
-// It reads inventory from both Shopify stores and updates stock_uk / stock_eu in Supabase.
-// Protected by a secret token to prevent unauthorized calls.
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -14,9 +10,8 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
   const stockMap = new Map<string, number>()
   let cursor: string | null = null
 
-  // Paginate through all product variants using GraphQL
   do {
-    const afterClause = cursor ? `, after: "${cursor}"` : ''
+    const afterClause: string = cursor ? `, after: "${cursor}"` : ''
     const query = `{
       productVariants(first: 250${afterClause}) {
         pageInfo { hasNextPage endCursor }
@@ -52,7 +47,6 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
     for (const edge of variants.edges) {
       const { sku, inventoryQuantity } = edge.node
       if (sku && inventoryQuantity !== null) {
-        // If a SKU appears multiple times (multiple locations), sum the quantities
         stockMap.set(sku, (stockMap.get(sku) ?? 0) + inventoryQuantity)
       }
     }
@@ -66,7 +60,6 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
 async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string, number>) {
   const rows = Array.from(stockMap.entries()).map(([sku, stock]) => ({ sku, stock }))
 
-  // Upsert in batches of 200 to avoid request size limits
   const batchSize = 200
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize)
@@ -81,7 +74,6 @@ async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string,
 }
 
 export async function GET(req: NextRequest) {
-  // Security check: only allow calls with the correct secret
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 
@@ -89,29 +81,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const results: Record<string, any> = {}
+  const results: Record<string, { status: string; synced?: number; error?: string }> = {}
 
   try {
-    // Sync UK stock
     const ukToken = process.env.SHOPIFY_UK_ACCESS_TOKEN!
     const ukStock = await fetchShopifyInventory('balling-eu-manegit.myshopify.com', ukToken)
     const ukCount = await upsertStock('stock_uk', ukStock)
     results.uk = { synced: ukCount, status: 'ok' }
-  } catch (err: any) {
-    results.uk = { status: 'error', error: err.message }
+  } catch (err: unknown) {
+    results.uk = { status: 'error', error: err instanceof Error ? err.message : String(err) }
   }
 
   try {
-    // Sync EU stock
     const euToken = process.env.SHOPIFY_EU_ACCESS_TOKEN!
     const euStock = await fetchShopifyInventory('balling-hockey-global.myshopify.com', euToken)
     const euCount = await upsertStock('stock_eu', euStock)
     results.eu = { synced: euCount, status: 'ok' }
-  } catch (err: any) {
-    results.eu = { status: 'error', error: err.message }
+  } catch (err: unknown) {
+    results.eu = { status: 'error', error: err instanceof Error ? err.message : String(err) }
   }
 
-  const allOk = Object.values(results).every((r: any) => r.status === 'ok')
+  const allOk = Object.values(results).every((r) => r.status === 'ok')
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
