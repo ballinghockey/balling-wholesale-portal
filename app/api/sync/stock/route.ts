@@ -74,11 +74,17 @@ async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string,
 }
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
+  // Allow Vercel cron invocations (they include x-vercel-cron-schedule header)
+  const isVercelCron = req.headers.get('x-vercel-cron-schedule') !== null
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isVercelCron) {
+    // For manual/external calls, require the CRON_SECRET
+    const authHeader = req.headers.get('authorization')
+    const cronSecret = process.env.CRON_SECRET
+
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   const results: Record<string, { status: string; synced?: number; error?: string }> = {}
