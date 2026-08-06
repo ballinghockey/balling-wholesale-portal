@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 type CartItem = {
@@ -20,16 +20,24 @@ type CartItem = {
   displayFinalPrice: string
 }
 
+const VAT_LABELS: Record<string, string> = {
+  EU_EXEMPT: 'VAT exempt (intra-EU)',
+  UK_STANDARD: 'VAT 20% will be applied',
+  ES_STANDARD: 'VAT 21% will be applied',
+}
+
 export default function CartView({
   items: initialItems,
   currency,
   customerId,
   customerName,
+  vatRule,
 }: {
   items: CartItem[]
   currency: 'GBP' | 'EUR'
   customerId: string
   customerName: string
+  vatRule: string
 }) {
   const router = useRouter()
   const [items, setItems] = useState<CartItem[]>(initialItems)
@@ -39,11 +47,20 @@ export default function CartView({
   const [error, setError] = useState<string | null>(null)
 
   const symbol = currency === 'GBP' ? '£' : '€'
-
   const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0)
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0)
+  const vatLabel = VAT_LABELS[vatRule] ?? ''
 
-  async function updateQty(sku: string, qty: number) {
+  const saveQty = useCallback(async (sku: string, qty: number) => {
+    await fetch('/api/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku, qty }),
+    })
+  }, [])
+
+  function handleQtyChange(sku: string, value: string) {
+    const qty = Math.max(1, parseInt(value || '1', 10))
     setItems((prev) =>
       prev.map((item) =>
         item.sku === sku
@@ -51,12 +68,10 @@ export default function CartView({
           : item
       )
     )
+  }
 
-    await fetch('/api/cart', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku, qty }),
-    })
+  function handleQtyBlur(sku: string, qty: number) {
+    startTransition(() => saveQty(sku, qty))
   }
 
   async function removeItem(sku: string) {
@@ -127,11 +142,13 @@ export default function CartView({
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 pb-32">
+    <div className="max-w-3xl mx-auto px-4 py-6 pb-36">
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-neutral-900">My order</h1>
-          <p className="text-sm text-neutral-500">{totalUnits} {totalUnits === 1 ? 'unit' : 'units'} · {customerName}</p>
+          <p className="text-sm text-neutral-500">
+            {totalUnits} {totalUnits === 1 ? 'unit' : 'units'} · {customerName}
+          </p>
         </div>
         <button
           onClick={() => router.push('/catalog')}
@@ -158,14 +175,14 @@ export default function CartView({
                     <p className="text-xs text-neutral-400 mt-0.5">{item.size} · SKU: {item.sku}</p>
                     {item.customerDiscountPct > 0 && (
                       <p className="text-xs text-emerald-600 mt-0.5">
-                        Additional discount: {item.customerDiscountPct}%
+                        Additional discount {item.customerDiscountPct}% already applied
                         {item.promoDiscountPct > 0 && ` + promo ${item.promoDiscountPct}%`}
                       </p>
                     )}
                   </div>
                   <button
-                    onClick={() => startTransition(() => removeItem(item.sku))}
-                    className="text-neutral-300 hover:text-red-400 transition-colors text-lg flex-shrink-0"
+                    onClick={() => removeItem(item.sku)}
+                    className="text-neutral-300 hover:text-red-400 transition-colors text-xl leading-none flex-shrink-0"
                     aria-label="Remove item"
                   >
                     ×
@@ -179,10 +196,8 @@ export default function CartView({
                       type="number"
                       min={1}
                       value={item.qty}
-                      onChange={(e) => {
-                        const qty = Math.max(1, parseInt(e.target.value || '1', 10))
-                        startTransition(() => updateQty(item.sku, qty))
-                      }}
+                      onChange={(e) => handleQtyChange(item.sku, e.target.value)}
+                      onBlur={(e) => handleQtyBlur(item.sku, parseInt(e.target.value || '1', 10))}
                       className="w-16 rounded-lg border border-neutral-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     />
                   </div>
@@ -211,12 +226,15 @@ export default function CartView({
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-4 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <span className="text-sm text-neutral-500">{totalUnits} {totalUnits === 1 ? 'unit' : 'units'}</span>
             <span className="text-lg font-semibold text-neutral-900">
               Subtotal: {symbol}{subtotal.toFixed(2)}
             </span>
           </div>
+          {vatLabel && (
+            <p className="text-xs text-neutral-400 text-right mb-3">{vatLabel}</p>
+          )}
           <button
             onClick={confirmOrder}
             disabled={confirming || items.length === 0}
