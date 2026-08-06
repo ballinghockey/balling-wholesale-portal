@@ -20,7 +20,7 @@ export default function RootLayout({
             <img
               src="/logo-full.png"
               alt="Balling Hockey"
-              className="h-7 w-auto object-contain"
+              className="h-12 w-auto object-contain"
             />
           </a>
           <span className="text-xs text-neutral-400 hidden sm:block tracking-wide uppercase">Wholesale Portal</span>
