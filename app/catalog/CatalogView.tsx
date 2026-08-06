@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useRef, useCallback } from 'react'
 import type { ProductGroupWithVariants } from '@/lib/catalog'
 
 const CATEGORIES = ['Sticks', 'Bags', 'Accessories', 'Apparel', 'Shoes', 'Padel'] as const
@@ -31,11 +31,11 @@ export default function CatalogView({
 
   const [activeCategory, setActiveCategory] = useState<string>(availableCategories[0] ?? 'Sticks')
   const [cart, setCart] = useState<Record<string, number>>(initialCart)
-  const [savingSku, setSavingSku] = useState<string | null>(null)
   const [zoomedImage, setZoomedImage] = useState<{ url: string; alt: string } | null>(null)
   const [openSubcategories, setOpenSubcategories] = useState<Set<string>>(new Set())
   const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set())
-  const [, startTransition] = useTransition()
+  const [showAllCategory, setShowAllCategory] = useState(false)
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const visibleGroups = useMemo(
     () => groups.filter((g) => g.category === activeCategory),
@@ -99,19 +99,18 @@ export default function CatalogView({
     return sample?.variants[0]?.customerDiscountPct ?? 0
   }, [groups, activeCategory])
 
-  async function updateQty(sku: string, qty: number) {
+  // Debounced save: UI updates instantly, Supabase write waits 800ms after last change
+  const updateQty = useCallback((sku: string, qty: number) => {
     setCart((prev) => ({ ...prev, [sku]: qty }))
-    setSavingSku(sku)
-    try {
+    if (saveTimers.current[sku]) clearTimeout(saveTimers.current[sku])
+    saveTimers.current[sku] = setTimeout(async () => {
       await fetch('/api/cart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sku, qty }),
       })
-    } finally {
-      setSavingSku(null)
-    }
-  }
+    }, 800)
+  }, [])
 
   function renderProductGroup(group: ProductGroupWithVariants) {
     return (
@@ -154,12 +153,11 @@ export default function CatalogView({
                 value={cart[v.sku] ?? 0}
                 onChange={(e) => {
                   const qty = Math.max(0, parseInt(e.target.value || '0', 10))
-                  startTransition(() => updateQty(v.sku, qty))
+                  updateQty(v.sku, qty)
                 }}
                 onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 flex-shrink-0"
               />
-              {savingSku === v.sku && <span className="text-xs text-neutral-300 flex-shrink-0">...</span>}
             </div>
           ))}
         </div>
@@ -194,9 +192,7 @@ export default function CatalogView({
                 onClick={() => toggleExpanded(subcat)}
                 className="w-full py-2 text-sm text-neutral-500 hover:text-neutral-900 transition-colors border border-neutral-200 rounded-lg bg-white"
               >
-                {isExpanded
-                  ? 'Show less'
-                  : `View all ${items.length} models`}
+                {isExpanded ? 'Show less' : `View all ${items.length} models`}
               </button>
             )}
           </div>
@@ -229,7 +225,7 @@ export default function CatalogView({
         {availableCategories.map((cat) => (
           <button
             key={cat}
-            onClick={() => setActiveCategory(cat)}
+            onClick={() => { setActiveCategory(cat); setShowAllCategory(false) }}
             className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
               activeCategory === cat
                 ? 'border-neutral-900 text-neutral-900'
@@ -252,13 +248,38 @@ export default function CatalogView({
           <p className="text-sm text-neutral-400 py-12 text-center">No products in this category yet.</p>
         )}
 
-        {subcategoryBuckets.get('')?.map(renderProductGroup)}
+        {/* "View all" mode: flat list of all models ignoring subcategories */}
+        {showAllCategory ? (
+          <>
+            {visibleGroups.map(renderProductGroup)}
+            <button
+              onClick={() => setShowAllCategory(false)}
+              className="w-full py-2.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors border border-neutral-200 rounded-xl bg-white"
+            >
+              Back to collections view
+            </button>
+          </>
+        ) : (
+          <>
+            {subcategoryBuckets.get('')?.map(renderProductGroup)}
 
-        {hasSubcategories &&
-          Array.from(subcategoryBuckets.entries())
-            .filter(([key]) => key !== '')
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([subcat, items]) => renderBucket(subcat, items))}
+            {hasSubcategories &&
+              Array.from(subcategoryBuckets.entries())
+                .filter(([key]) => key !== '')
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([subcat, items]) => renderBucket(subcat, items))}
+
+            {/* "View all" button at category level — shows everything flat */}
+            {hasSubcategories && visibleGroups.length > 0 && (
+              <button
+                onClick={() => setShowAllCategory(true)}
+                className="w-full py-2.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors border border-dashed border-neutral-300 rounded-xl bg-white"
+              >
+                View all {visibleGroups.length} {activeCategory} models
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {cartCount > 0 && (
