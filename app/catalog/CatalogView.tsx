@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import type { ProductGroupWithVariants } from '@/lib/catalog'
 
 const CATEGORIES = ['Sticks', 'Bags', 'Accessories', 'Apparel', 'Shoes', 'Padel'] as const
+const DEFAULT_VISIBLE = 5
 
 const STOCK_STYLES: Record<string, string> = {
   Available: 'bg-emerald-50 text-emerald-700',
@@ -33,6 +34,7 @@ export default function CatalogView({
   const [savingSku, setSavingSku] = useState<string | null>(null)
   const [zoomedImage, setZoomedImage] = useState<{ url: string; alt: string } | null>(null)
   const [openSubcategories, setOpenSubcategories] = useState<Set<string>>(new Set())
+  const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set())
   const [, startTransition] = useTransition()
 
   const visibleGroups = useMemo(
@@ -40,9 +42,6 @@ export default function CatalogView({
     [groups, activeCategory]
   )
 
-  // Agrupar por subcategory dentro de la categoría activa.
-  // Grupos sin subcategory (Shoes, Padel, o cualquier producto sin asignar)
-  // van bajo la clave '' y se muestran siempre abiertos, sin acordeón.
   const subcategoryBuckets = useMemo(() => {
     const buckets = new Map<string, ProductGroupWithVariants[]>()
     for (const g of visibleGroups) {
@@ -61,11 +60,15 @@ export default function CatalogView({
   function toggleSubcategory(key: string) {
     setOpenSubcategories((prev) => {
       const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
+      if (next.has(key)) { next.delete(key) } else { next.add(key) }
+      return next
+    })
+  }
+
+  function toggleExpanded(key: string) {
+    setExpandedSubcategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) { next.delete(key) } else { next.add(key) }
       return next
     })
   }
@@ -73,17 +76,13 @@ export default function CatalogView({
   const variantBySku = useMemo(() => {
     const map = new Map<string, ProductGroupWithVariants['variants'][number] & { currency: string }>()
     for (const g of groups) {
-      for (const v of g.variants) {
-        map.set(v.sku, v)
-      }
+      for (const v of g.variants) { map.set(v.sku, v) }
     }
     return map
   }, [groups])
 
   const { cartCount, subtotal, currencySymbol } = useMemo(() => {
-    let count = 0
-    let total = 0
-    let symbol = '£'
+    let count = 0, total = 0, symbol = '£'
     for (const [sku, qty] of Object.entries(cart)) {
       if (qty <= 0) continue
       const variant = variantBySku.get(sku)
@@ -103,7 +102,6 @@ export default function CatalogView({
   async function updateQty(sku: string, qty: number) {
     setCart((prev) => ({ ...prev, [sku]: qty }))
     setSavingSku(sku)
-
     try {
       await fetch('/api/cart', {
         method: 'POST',
@@ -117,10 +115,7 @@ export default function CatalogView({
 
   function renderProductGroup(group: ProductGroupWithVariants) {
     return (
-      <div
-        key={group.productGroup}
-        className="bg-white rounded-xl border border-neutral-200 p-4"
-      >
+      <div key={group.productGroup} className="bg-white rounded-xl border border-neutral-200 p-4">
         <div className="flex gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -131,55 +126,81 @@ export default function CatalogView({
           />
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-neutral-900">{group.productName}</h3>
-            <p className="text-xs text-neutral-400">
-              {group.variants.length} {group.variants.length === 1 ? 'size' : 'sizes'}
-            </p>
+            <p className="text-xs text-neutral-400">{group.variants.length} {group.variants.length === 1 ? 'size' : 'sizes'}</p>
           </div>
         </div>
-
         <div className="mt-4 divide-y divide-neutral-100">
           {group.variants.map((v) => (
             <div key={v.sku} className="flex items-center gap-3 py-3 text-sm">
               <div className="w-16 font-medium text-neutral-700 flex-shrink-0">{v.size}</div>
-
-              <span
-                className={`px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0 ${STOCK_STYLES[v.stockStatus]}`}
-              >
+              <span className={`px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0 ${STOCK_STYLES[v.stockStatus]}`}>
                 {v.stockStatus}
               </span>
-
               <div className="flex-1 text-neutral-400 text-xs hidden sm:block">
                 <div>SKU: {v.sku}</div>
                 <div>EAN: {v.ean}</div>
               </div>
-
               <div className="w-28 text-right flex-shrink-0">
                 {v.customerDiscountPct > 0 && (
-                  <div className="text-xs text-neutral-400 line-through">
-                    {formatPrice(v.listPrice, v.currency)}
-                  </div>
+                  <div className="text-xs text-neutral-400 line-through">{formatPrice(v.listPrice, v.currency)}</div>
                 )}
                 <div className="font-semibold text-neutral-900">{v.displayPrice}</div>
               </div>
-
               <input
                 type="number"
                 min={0}
+                inputMode="numeric"
                 disabled={v.stockStatus === 'Out of Stock'}
                 value={cart[v.sku] ?? 0}
                 onChange={(e) => {
                   const qty = Math.max(0, parseInt(e.target.value || '0', 10))
                   startTransition(() => updateQty(v.sku, qty))
                 }}
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 flex-shrink-0"
               />
-
-              {savingSku === v.sku && (
-                <span className="text-xs text-neutral-300 flex-shrink-0">...</span>
-              )}
+              {savingSku === v.sku && <span className="text-xs text-neutral-300 flex-shrink-0">...</span>}
             </div>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  function renderBucket(subcat: string, items: ProductGroupWithVariants[]) {
+    const isOpen = openSubcategories.has(subcat)
+    const isExpanded = expandedSubcategories.has(subcat)
+    const visibleItems = isExpanded ? items : items.slice(0, DEFAULT_VISIBLE)
+    const hasMore = items.length > DEFAULT_VISIBLE
+
+    return (
+      <div key={subcat} className="border border-neutral-200 rounded-xl overflow-hidden">
+        <button
+          onClick={() => toggleSubcategory(subcat)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-neutral-50 hover:bg-neutral-100 transition-colors text-left"
+        >
+          <span className="font-medium text-neutral-900 text-sm">
+            {subcat}
+            <span className="text-neutral-400 ml-2 font-normal">({items.length} {items.length === 1 ? 'model' : 'models'})</span>
+          </span>
+          <span className="text-neutral-400 text-sm">{isOpen ? '−' : '+'}</span>
+        </button>
+
+        {isOpen && (
+          <div className="p-3 space-y-3 bg-neutral-50/50">
+            {visibleItems.map(renderProductGroup)}
+            {hasMore && (
+              <button
+                onClick={() => toggleExpanded(subcat)}
+                className="w-full py-2 text-sm text-neutral-500 hover:text-neutral-900 transition-colors border border-neutral-200 rounded-lg bg-white"
+              >
+                {isExpanded
+                  ? 'Show less'
+                  : `View all ${items.length} models`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     )
   }
@@ -228,77 +249,32 @@ export default function CatalogView({
 
       <div className={`space-y-3 ${activeCategoryDiscount > 0 ? '' : 'mt-6'}`}>
         {visibleGroups.length === 0 && (
-          <p className="text-sm text-neutral-400 py-12 text-center">
-            No products in this category yet.
-          </p>
+          <p className="text-sm text-neutral-400 py-12 text-center">No products in this category yet.</p>
         )}
 
-        {/* Productos sin subcategoría: van siempre visibles, sin acordeón */}
         {subcategoryBuckets.get('')?.map(renderProductGroup)}
 
-        {/* Productos con subcategoría: acordeón colapsable, uno por línea/colección */}
         {hasSubcategories &&
           Array.from(subcategoryBuckets.entries())
             .filter(([key]) => key !== '')
             .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([subcat, items]) => {
-              const isOpen = openSubcategories.has(subcat)
-              return (
-                <div key={subcat} className="border border-neutral-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => toggleSubcategory(subcat)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-neutral-50 hover:bg-neutral-100 transition-colors text-left"
-                  >
-                    <span className="font-medium text-neutral-900 text-sm">
-                      {subcat}
-                      <span className="text-neutral-400 ml-2 font-normal">
-                        ({items.length} {items.length === 1 ? 'model' : 'models'})
-                      </span>
-                    </span>
-                    <span className="text-neutral-400 text-sm">{isOpen ? '−' : '+'}</span>
-                  </button>
-
-                  {isOpen && (
-                    <div className="p-3 space-y-3 bg-neutral-50/50">
-                      {items.map(renderProductGroup)}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            .map(([subcat, items]) => renderBucket(subcat, items))}
       </div>
 
       {cartCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <span className="text-sm text-neutral-500">
-              {cartCount} {cartCount === 1 ? 'unit' : 'units'} in your order
-            </span>
-            <span className="text-lg font-semibold text-neutral-900">
-              Subtotal: {currencySymbol}{subtotal.toFixed(2)}
-            </span>
+            <span className="text-sm text-neutral-500">{cartCount} {cartCount === 1 ? 'unit' : 'units'} in your order</span>
+            <span className="text-lg font-semibold text-neutral-900">Subtotal: {currencySymbol}{subtotal.toFixed(2)}</span>
           </div>
         </div>
       )}
 
       {zoomedImage && (
-        <div
-          onClick={() => setZoomedImage(null)}
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6 cursor-zoom-out"
-        >
+        <div onClick={() => setZoomedImage(null)} className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6 cursor-zoom-out">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={zoomedImage.url}
-            alt={zoomedImage.alt}
-            className="max-w-full max-h-full rounded-lg object-contain"
-          />
-          <button
-            onClick={() => setZoomedImage(null)}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 text-neutral-900 flex items-center justify-center text-lg hover:bg-white transition-colors"
-            aria-label="Close"
-          >
-            ×
-          </button>
+          <img src={zoomedImage.url} alt={zoomedImage.alt} className="max-w-full max-h-full rounded-lg object-contain" />
+          <button onClick={() => setZoomedImage(null)} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 text-neutral-900 flex items-center justify-center text-lg hover:bg-white transition-colors" aria-label="Close">×</button>
         </div>
       )}
     </div>
