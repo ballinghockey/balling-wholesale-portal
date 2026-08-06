@@ -30,6 +30,7 @@ export type ProductGroupWithVariants = {
   subcategory: string
   sortOrder: number
   imageUrl: string
+  onSale: boolean
   variants: SizeVariant[]
 }
 
@@ -72,7 +73,7 @@ export async function getCatalogForCustomer(
 
   const groups = new Map<string, ProductGroupWithVariants>()
 
-  for (const p of products as (Product & { subcategory?: string; sort_order?: number })[]) {
+  for (const p of products as (Product & { subcategory?: string; sort_order?: number; on_sale?: boolean })[]) {
     const price = calculatePrice(p, customer, discounts, promoList)
     const stock = stockMap.get(p.sku) ?? 0
 
@@ -101,17 +102,16 @@ export async function getCatalogForCustomer(
         subcategory: p.subcategory ?? '',
         sortOrder: p.sort_order ?? 0,
         imageUrl: p.image_url,
+        onSale: p.on_sale ?? false,
         variants: [variant],
       })
     }
   }
 
-  // Ordenar talles dentro de cada grupo de forma natural
   for (const group of groups.values()) {
     group.variants.sort((a, b) => a.size.localeCompare(b.size, undefined, { numeric: true }))
   }
 
-  // Orden final: primero por sort_order (menor = primero), después alfabético
   return Array.from(groups.values()).sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
     return a.productName.localeCompare(b.productName)
