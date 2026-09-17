@@ -17,16 +17,29 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-    setLoading(false)
-
-    if (error) {
-      setError('Email o contraseña incorrectos. Probá de nuevo.')
+    if (signInError || !data.user) {
+      setLoading(false)
+      setError('Incorrect email or password. Please try again.')
       return
     }
 
-    router.push('/catalog')
+    // Check if admin
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('is_admin')
+      .eq('auth_user_id', data.user.id)
+      .maybeSingle()
+
+    setLoading(false)
+
+    if (customer?.is_admin) {
+      router.push('/admin')
+    } else {
+      router.push('/catalog')
+    }
+
     router.refresh()
   }
 
@@ -34,8 +47,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-neutral-900">Balling Hockey</h1>
-          <p className="text-sm text-neutral-500 mt-1">Portal de pedidos mayoristas</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-full.png"
+            alt="Balling Hockey"
+            className="h-10 w-auto object-contain mx-auto mb-4"
+          />
+          <p className="text-sm text-neutral-500">Wholesale Portal</p>
         </div>
 
         <form
@@ -53,13 +71,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-              placeholder="tu@empresa.com"
+              placeholder="you@company.com"
             />
           </div>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-neutral-700 mb-1">
-              Contraseña
+              Password
             </label>
             <input
               id="password"
@@ -83,12 +101,12 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-lg bg-neutral-900 text-white py-2.5 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Ingresando...' : 'Ingresar'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 
         <p className="text-center text-xs text-neutral-400 mt-6">
-          ¿Problemas para ingresar? Contactá a tu representante de Balling.
+          Trouble signing in? Contact your Balling representative.
         </p>
       </div>
     </div>
