@@ -51,28 +51,10 @@ function formatDate(dateStr: string) {
   })
 }
 
-function OrderCard({
-  orderId,
-  orderDate,
-  status,
-  title,
-  subtitle,
-  currency,
-  total,
-  lines,
-  shippingAddress,
-  isAthlete,
-}: {
-  orderId: string
-  orderDate: string
-  status: string
-  title: string
-  subtitle: string
-  currency?: string
-  total?: number
-  lines: OrderLine[]
-  shippingAddress?: Record<string, string> | null
-  isAthlete: boolean
+function OrderCard({ orderId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete }: {
+  orderId: string; orderDate: string; status: string; title: string; subtitle: string
+  currency?: string; total?: number; lines: OrderLine[]
+  shippingAddress?: Record<string, string> | null; isAthlete: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(status)
@@ -97,10 +79,7 @@ function OrderCard({
 
   return (
     <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3.5 text-left hover:bg-neutral-50 transition-colors"
-      >
+      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between px-4 py-3.5 text-left hover:bg-neutral-50 transition-colors">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -108,32 +87,23 @@ function OrderCard({
               <span className={`text-xs font-medium px-2 py-0.5 rounded-md border ${STATUS_STYLES[currentStatus] ?? STATUS_STYLES.submitted}`}>
                 {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
               </span>
-              {isAthlete && (
-                <span className="text-xs px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">Athlete</span>
-              )}
+              {isAthlete && <span className="text-xs px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">Athlete</span>}
             </div>
-            <p className="text-xs text-neutral-400 mt-0.5 truncate">
-              {formatDate(orderDate)} · Ref {ref} · {totalUnits} units
-            </p>
+            <p className="text-xs text-neutral-400 mt-0.5">{formatDate(orderDate)} · Ref {ref} · {totalUnits} units</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-          {!isAthlete && total !== undefined && (
-            <span className="font-semibold text-neutral-900 text-sm">{symbol}{total.toFixed(2)}</span>
-          )}
+          {!isAthlete && total !== undefined && <span className="font-semibold text-neutral-900 text-sm">{symbol}{total.toFixed(2)}</span>}
           <span className="text-neutral-400 text-sm">{expanded ? '−' : '+'}</span>
         </div>
       </button>
 
       {expanded && (
         <div className="border-t border-neutral-100 px-4 pb-4">
-          {/* Customer/Athlete info */}
           <div className="mt-3 mb-4 text-xs text-neutral-500 space-y-1">
             <p><span className="font-medium text-neutral-700">{isAthlete ? 'Athlete' : 'Customer'}:</span> {title}</p>
             <p><span className="font-medium text-neutral-700">Email:</span> {subtitle}</p>
           </div>
-
-          {/* Shipping address for athletes */}
           {isAthlete && shippingAddress && (
             <div className="mb-4 p-3 bg-neutral-50 rounded-lg text-xs text-neutral-600">
               <p className="font-medium text-neutral-700 mb-1">Shipping address</p>
@@ -143,8 +113,6 @@ function OrderCard({
               <p>{shippingAddress.postcode}, {shippingAddress.country}</p>
             </div>
           )}
-
-          {/* Order lines */}
           <table className="w-full mb-4">
             <thead>
               <tr className="text-xs text-neutral-400 uppercase tracking-wide">
@@ -161,35 +129,19 @@ function OrderCard({
                     <p className="text-xs text-neutral-400">{line.size} · {line.sku}</p>
                   </td>
                   <td className="py-2 text-center text-sm text-neutral-700">{line.qty}</td>
-                  {!isAthlete && (
-                    <td className="py-2 text-right text-sm font-medium text-neutral-900">
-                      {symbol}{(line.line_total ?? 0).toFixed(2)}
-                    </td>
-                  )}
+                  {!isAthlete && <td className="py-2 text-right text-sm font-medium text-neutral-900">{symbol}{(line.line_total ?? 0).toFixed(2)}</td>}
                 </tr>
               ))}
             </tbody>
           </table>
-
-          {/* Status update */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-neutral-500">Update status:</span>
-            <div className="flex gap-1 flex-wrap">
-              {STATUS_OPTIONS.map((s) => (
-                <button
-                  key={s}
-                  disabled={s === currentStatus || saving}
-                  onClick={() => updateStatus(s)}
-                  className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
-                    s === currentStatus
-                      ? `${STATUS_STYLES[s]} cursor-default`
-                      : 'border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700'
-                  }`}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-neutral-500">Status:</span>
+            {STATUS_OPTIONS.map((s) => (
+              <button key={s} disabled={s === currentStatus || saving} onClick={() => updateStatus(s)}
+                className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${s === currentStatus ? `${STATUS_STYLES[s]} cursor-default` : 'border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700'}`}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
             {saving && <span className="text-xs text-neutral-400">Saving...</span>}
           </div>
         </div>
@@ -198,86 +150,324 @@ function OrderCard({
   )
 }
 
-export default function AdminView({
-  wholesaleOrders,
-  athleteOrders,
-}: {
-  wholesaleOrders: WholesaleOrder[]
-  athleteOrders: AthleteOrder[]
+function AddAthleteForm({ onSuccess }: { onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    athlete_name: '', contact_name: '', email: '', country: '', warehouse: 'UK', currency: 'GBP',
+    credits_sticks: '0', credits_bags: '0', credits_accessories: '0',
+    credits_apparel: '0', credits_shoes: '0', credits_padel: '0',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  function set(key: string, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    if (key === 'warehouse') {
+      setForm((prev) => ({ ...prev, warehouse: value, currency: value === 'UK' ? 'GBP' : 'EUR' }))
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    const res = await fetch('/api/admin/invite-athlete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+
+    const data = await res.json()
+    setLoading(false)
+
+    if (!res.ok) {
+      setError(data.error ?? 'Something went wrong')
+    } else {
+      setSuccess(`✅ ${form.athlete_name} added (${data.athlete_id}). Invite email sent to ${form.email}.${data.warning ? ' ⚠️ ' + data.warning : ''}`)
+      setForm({ athlete_name: '', contact_name: '', email: '', country: '', warehouse: 'UK', currency: 'GBP',
+        credits_sticks: '0', credits_bags: '0', credits_accessories: '0', credits_apparel: '0', credits_shoes: '0', credits_padel: '0' })
+      onSuccess()
+    }
+  }
+
+  const creditFields = [
+    { key: 'credits_sticks', label: 'Sticks' },
+    { key: 'credits_bags', label: 'Bags' },
+    { key: 'credits_accessories', label: 'Accessories' },
+    { key: 'credits_apparel', label: 'Apparel' },
+    { key: 'credits_shoes', label: 'Shoes' },
+    { key: 'credits_padel', label: 'Padel' },
+  ]
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-neutral-200 p-5 space-y-4">
+      <h3 className="font-semibold text-neutral-900 text-sm">Add new athlete</h3>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Full name *</label>
+          <input required value={form.athlete_name} onChange={(e) => set('athlete_name', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="John Smith" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Email *</label>
+          <input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="athlete@club.com" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Country</label>
+          <input value={form.country} onChange={(e) => set('country', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="United Kingdom" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Warehouse *</label>
+          <select value={form.warehouse} onChange={(e) => set('warehouse', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white">
+            <option value="UK">UK (£ GBP)</option>
+            <option value="EU">EU (€ EUR)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs text-neutral-500 mb-2 font-medium">Credits per category</p>
+        <div className="grid grid-cols-3 gap-2">
+          {creditFields.map(({ key, label }) => (
+            <div key={key}>
+              <label className="block text-xs text-neutral-400 mb-1">{label}</label>
+              <input type="number" min={0} value={form[key as keyof typeof form]}
+                onChange={(e) => set(key, e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {success && <p className="text-xs text-emerald-600">{success}</p>}
+
+      <button type="submit" disabled={loading}
+        className="w-full rounded-lg bg-neutral-900 text-white py-2.5 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors">
+        {loading ? 'Adding...' : 'Add athlete & send invite'}
+      </button>
+    </form>
+  )
+}
+
+function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    customer_name: '', contact_name: '', email: '', country: '', region: '',
+    warehouse: 'UK', currency: 'GBP', vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
+    discount_sticks: '0', discount_bags: '0', discount_accessories: '0',
+    discount_apparel: '0', discount_shoes: '0',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  function set(key: string, value: string) {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+      if (key === 'warehouse') {
+        next.currency = value === 'UK' ? 'GBP' : 'EUR'
+        next.vat_rule = value === 'UK' ? 'UK_STANDARD' : 'EU_EXEMPT'
+        next.shipping_rule = value === 'UK' ? 'UK_STANDARD' : 'EU_STANDARD'
+      }
+      return next
+    })
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    const res = await fetch('/api/admin/invite-customer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+
+    const data = await res.json()
+    setLoading(false)
+
+    if (!res.ok) {
+      setError(data.error ?? 'Something went wrong')
+    } else {
+      setSuccess(`✅ ${form.customer_name} added (${data.customer_id}). Invite email sent to ${form.email}.`)
+      setForm({
+        customer_name: '', contact_name: '', email: '', country: '', region: '',
+        warehouse: 'UK', currency: 'GBP', vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
+        discount_sticks: '0', discount_bags: '0', discount_accessories: '0',
+        discount_apparel: '0', discount_shoes: '0',
+      })
+      onSuccess()
+    }
+  }
+
+  const discountFields = [
+    { key: 'discount_sticks', label: 'Sticks' },
+    { key: 'discount_bags', label: 'Bags' },
+    { key: 'discount_accessories', label: 'Accessories' },
+    { key: 'discount_apparel', label: 'Apparel' },
+    { key: 'discount_shoes', label: 'Shoes' },
+  ]
+
+  const vatOptions = [
+    { value: 'UK_STANDARD', label: 'UK Standard (20%)' },
+    { value: 'EU_EXEMPT', label: 'EU Exempt (0%)' },
+    { value: 'ES_STANDARD', label: 'Spain Standard (21%)' },
+  ]
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-neutral-200 p-5 space-y-4">
+      <h3 className="font-semibold text-neutral-900 text-sm">Add new customer</h3>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Company name *</label>
+          <input required value={form.customer_name} onChange={(e) => set('customer_name', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="Hockey Club Ltd" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Contact name</label>
+          <input value={form.contact_name} onChange={(e) => set('contact_name', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="John Smith" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Email *</label>
+          <input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="orders@hockeyclub.com" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Country</label>
+          <input value={form.country} onChange={(e) => set('country', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            placeholder="United Kingdom" />
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Warehouse *</label>
+          <select value={form.warehouse} onChange={(e) => set('warehouse', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white">
+            <option value="UK">UK (£ GBP)</option>
+            <option value="EU">EU (€ EUR)</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">VAT rule *</label>
+          <select value={form.vat_rule} onChange={(e) => set('vat_rule', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white">
+            {vatOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs text-neutral-500 mb-2 font-medium">Additional discount % per category</p>
+        <div className="grid grid-cols-5 gap-2">
+          {discountFields.map(({ key, label }) => (
+            <div key={key}>
+              <label className="block text-xs text-neutral-400 mb-1">{label}</label>
+              <input type="number" min={0} max={100} value={form[key as keyof typeof form]}
+                onChange={(e) => set(key, e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {success && <p className="text-xs text-emerald-600">{success}</p>}
+
+      <button type="submit" disabled={loading}
+        className="w-full rounded-lg bg-neutral-900 text-white py-2.5 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors">
+        {loading ? 'Adding...' : 'Add customer & send invite'}
+      </button>
+    </form>
+  )
+}
+
+export default function AdminView({ wholesaleOrders, athleteOrders }: {
+  wholesaleOrders: WholesaleOrder[]; athleteOrders: AthleteOrder[]
 }) {
-  const [activeTab, setActiveTab] = useState<'wholesale' | 'athletes'>('wholesale')
+  const [activeTab, setActiveTab] = useState<'wholesale' | 'athletes' | 'add'>('wholesale')
+  const [addTab, setAddTab] = useState<'athlete' | 'customer'>('athlete')
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const tabs = [
-    { key: 'wholesale', label: 'Wholesale orders', count: wholesaleOrders.length },
-    { key: 'athletes', label: 'Athlete requests', count: athleteOrders.length },
+    { key: 'wholesale', label: 'Wholesale', count: wholesaleOrders.length },
+    { key: 'athletes', label: 'Athletes', count: athleteOrders.length },
+    { key: 'add', label: '+ Add new', count: null },
   ] as const
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-neutral-900">Admin</h1>
-        <p className="text-sm text-neutral-500">Order management</p>
+        <p className="text-sm text-neutral-500">Order management & user setup</p>
       </header>
 
       <nav className="flex gap-1 mb-6 border-b border-neutral-200">
         {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? 'border-neutral-900 text-neutral-900'
-                : 'border-transparent text-neutral-400 hover:text-neutral-600'
-            }`}
-          >
+              activeTab === tab.key ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-600'
+            }`}>
             {tab.label}
-            <span className="ml-1.5 text-xs text-neutral-400">({tab.count})</span>
+            {tab.count !== null && <span className="ml-1.5 text-xs text-neutral-400">({tab.count})</span>}
           </button>
         ))}
       </nav>
 
       {activeTab === 'wholesale' && (
         <div className="space-y-3">
-          {wholesaleOrders.length === 0 ? (
-            <p className="text-sm text-neutral-400 text-center py-12">No wholesale orders yet.</p>
-          ) : (
-            wholesaleOrders.map((order) => (
-              <OrderCard
-                key={order.order_id}
-                orderId={order.order_id}
-                orderDate={order.order_date}
-                status={order.status}
-                title={order.customerName}
-                subtitle={order.customerEmail}
-                currency={order.currency}
-                total={order.net_total}
-                lines={order.order_lines}
-                isAthlete={false}
-              />
-            ))
-          )}
+          {wholesaleOrders.length === 0
+            ? <p className="text-sm text-neutral-400 text-center py-12">No wholesale orders yet.</p>
+            : wholesaleOrders.map((order) => (
+              <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
+                status={order.status} title={order.customerName} subtitle={order.customerEmail}
+                currency={order.currency} total={order.net_total} lines={order.order_lines} isAthlete={false} />
+            ))}
         </div>
       )}
 
       {activeTab === 'athletes' && (
         <div className="space-y-3">
-          {athleteOrders.length === 0 ? (
-            <p className="text-sm text-neutral-400 text-center py-12">No athlete requests yet.</p>
-          ) : (
-            athleteOrders.map((order) => (
-              <OrderCard
-                key={order.order_id}
-                orderId={order.order_id}
-                orderDate={order.order_date}
-                status={order.status}
-                title={order.athleteName}
-                subtitle={order.athleteEmail}
-                lines={order.order_lines}
-                shippingAddress={order.shipping_address}
-                isAthlete={true}
-              />
-            ))
-          )}
+          {athleteOrders.length === 0
+            ? <p className="text-sm text-neutral-400 text-center py-12">No athlete requests yet.</p>
+            : athleteOrders.map((order) => (
+              <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
+                status={order.status} title={order.athleteName} subtitle={order.athleteEmail}
+                lines={order.order_lines} shippingAddress={order.shipping_address} isAthlete={true} />
+            ))}
+        </div>
+      )}
+
+      {activeTab === 'add' && (
+        <div className="space-y-4">
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => setAddTab('athlete')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === 'athlete' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
+              Athlete
+            </button>
+            <button onClick={() => setAddTab('customer')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === 'customer' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
+              Customer
+            </button>
+          </div>
+
+          {addTab === 'athlete'
+            ? <AddAthleteForm key={refreshKey} onSuccess={() => setRefreshKey(k => k + 1)} />
+            : <AddCustomerForm key={refreshKey} onSuccess={() => setRefreshKey(k => k + 1)} />}
         </div>
       )}
     </div>
