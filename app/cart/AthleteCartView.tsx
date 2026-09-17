@@ -12,14 +12,29 @@ type CartItem = {
   imageUrl: string
 }
 
+type ShippingAddress = {
+  name: string
+  line1: string
+  line2: string
+  city: string
+  county: string
+  postcode: string
+  country: string
+}
+
+const UK_COUNTRIES = ['United Kingdom', 'Ireland']
+const EU_COUNTRIES = ['Spain', 'France', 'Germany', 'Netherlands', 'Belgium', 'Italy', 'Portugal', 'Sweden', 'Denmark', 'Norway', 'Finland', 'Austria', 'Switzerland', 'Poland', 'Other']
+
 export default function AthleteCartView({
   items: initialItems,
   athleteId,
   athleteName,
+  warehouse,
 }: {
   items: CartItem[]
   athleteId: string
   athleteName: string
+  warehouse: 'UK' | 'EU'
 }) {
   const router = useRouter()
   const [items, setItems] = useState<CartItem[]>(initialItems)
@@ -27,6 +42,19 @@ export default function AthleteCartView({
   const [confirming, setConfirming] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addressErrors, setAddressErrors] = useState<Record<string, string>>({})
+
+  const countryOptions = warehouse === 'UK' ? UK_COUNTRIES : EU_COUNTRIES
+
+  const [address, setAddress] = useState<ShippingAddress>({
+    name: athleteName,
+    line1: '',
+    line2: '',
+    city: '',
+    county: '',
+    postcode: '',
+    country: countryOptions[0],
+  })
 
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0)
 
@@ -40,9 +68,7 @@ export default function AthleteCartView({
 
   function handleQtyChange(sku: string, value: string) {
     const qty = Math.max(1, parseInt(value || '1', 10))
-    setItems((prev) =>
-      prev.map((item) => item.sku === sku ? { ...item, qty } : item)
-    )
+    setItems((prev) => prev.map((item) => item.sku === sku ? { ...item, qty } : item))
   }
 
   function handleQtyBlur(sku: string, qty: number) {
@@ -58,7 +84,29 @@ export default function AthleteCartView({
     })
   }
 
+  function validateAddress(): boolean {
+    const errors: Record<string, string> = {}
+    if (!address.name.trim()) errors.name = 'Required'
+    if (!address.line1.trim()) errors.line1 = 'Required'
+    if (!address.city.trim()) errors.city = 'Required'
+    if (!address.postcode.trim()) errors.postcode = 'Required'
+    if (!address.country.trim()) errors.country = 'Required'
+
+    // UK postcode format validation
+    if (warehouse === 'UK' && address.postcode) {
+      const ukPostcode = /^[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}$/i
+      if (!ukPostcode.test(address.postcode.trim())) {
+        errors.postcode = 'Invalid UK postcode format (e.g. SW1A 1AA)'
+      }
+    }
+
+    setAddressErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   async function confirmOrder() {
+    if (!validateAddress()) return
+
     setConfirming(true)
     setError(null)
 
@@ -68,10 +116,11 @@ export default function AthleteCartView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items,
-          currency: 'GBP',
+          currency: warehouse === 'UK' ? 'GBP' : 'EUR',
           customerId: athleteId,
           customerName: athleteName,
           isAthlete: true,
+          shippingAddress: address,
         }),
       })
 
@@ -115,7 +164,7 @@ export default function AthleteCartView({
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 pb-36">
+    <div className="max-w-3xl mx-auto px-4 py-6 pb-10">
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-neutral-900">My request</h1>
@@ -126,7 +175,8 @@ export default function AthleteCartView({
         </button>
       </header>
 
-      <div className="space-y-3">
+      {/* Items */}
+      <div className="space-y-3 mb-8">
         {items.map((item) => (
           <div key={item.sku} className="bg-white rounded-xl border border-neutral-200 p-4">
             <div className="flex gap-3">
@@ -157,23 +207,114 @@ export default function AthleteCartView({
         ))}
       </div>
 
-      {error && <p className="text-sm text-red-600 mt-4 text-center">{error}</p>}
+      {/* Shipping address */}
+      <div className="bg-white rounded-xl border border-neutral-200 p-5 mb-6">
+        <h2 className="font-semibold text-neutral-900 mb-4 text-sm">Shipping address</h2>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-4 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-neutral-500">{totalUnits} {totalUnits === 1 ? 'unit' : 'units'} selected</span>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-neutral-500 mb-1">Full name *</label>
+            <input
+              type="text"
+              value={address.name}
+              onChange={(e) => setAddress((a) => ({ ...a, name: e.target.value }))}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 ${addressErrors.name ? 'border-red-400' : 'border-neutral-300'}`}
+              placeholder="Full name"
+            />
+            {addressErrors.name && <p className="text-xs text-red-500 mt-1">{addressErrors.name}</p>}
           </div>
-          <button
-            onClick={confirmOrder}
-            disabled={confirming || items.length === 0}
-            className="w-full rounded-lg bg-neutral-900 text-white py-3 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors"
-          >
-            {confirming ? 'Submitting...' : 'Submit request'}
-          </button>
-          <p className="text-xs text-neutral-400 text-center mt-2">Our team will review and arrange delivery.</p>
+
+          <div>
+            <label className="block text-xs text-neutral-500 mb-1">Address line 1 *</label>
+            <input
+              type="text"
+              value={address.line1}
+              onChange={(e) => setAddress((a) => ({ ...a, line1: e.target.value }))}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 ${addressErrors.line1 ? 'border-red-400' : 'border-neutral-300'}`}
+              placeholder="Street address, P.O. box"
+            />
+            {addressErrors.line1 && <p className="text-xs text-red-500 mt-1">{addressErrors.line1}</p>}
+          </div>
+
+          <div>
+            <label className="block text-xs text-neutral-500 mb-1">Address line 2</label>
+            <input
+              type="text"
+              value={address.line2}
+              onChange={(e) => setAddress((a) => ({ ...a, line2: e.target.value }))}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              placeholder="Apartment, suite, unit, building (optional)"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1">City *</label>
+              <input
+                type="text"
+                value={address.city}
+                onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))}
+                className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 ${addressErrors.city ? 'border-red-400' : 'border-neutral-300'}`}
+                placeholder="City"
+              />
+              {addressErrors.city && <p className="text-xs text-red-500 mt-1">{addressErrors.city}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1">
+                {warehouse === 'UK' ? 'County' : 'Region / Province'}
+              </label>
+              <input
+                type="text"
+                value={address.county}
+                onChange={(e) => setAddress((a) => ({ ...a, county: e.target.value }))}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                placeholder={warehouse === 'UK' ? 'County (optional)' : 'Region (optional)'}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1">
+                {warehouse === 'UK' ? 'Postcode *' : 'Postal code *'}
+              </label>
+              <input
+                type="text"
+                value={address.postcode}
+                onChange={(e) => setAddress((a) => ({ ...a, postcode: e.target.value.toUpperCase() }))}
+                className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 ${addressErrors.postcode ? 'border-red-400' : 'border-neutral-300'}`}
+                placeholder={warehouse === 'UK' ? 'SW1A 1AA' : '28001'}
+              />
+              {addressErrors.postcode && <p className="text-xs text-red-500 mt-1">{addressErrors.postcode}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1">Country *</label>
+              <select
+                value={address.country}
+                onChange={(e) => setAddress((a) => ({ ...a, country: e.target.value }))}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+              >
+                {countryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
+
+      {error && <p className="text-sm text-red-600 mb-4 text-center">{error}</p>}
+
+      <button
+        onClick={confirmOrder}
+        disabled={confirming || items.length === 0}
+        className="w-full rounded-lg bg-neutral-900 text-white py-3 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+      >
+        {confirming ? 'Submitting...' : 'Submit request'}
+      </button>
+      <p className="text-xs text-neutral-400 text-center mt-2">Our team will review and arrange delivery.</p>
     </div>
   )
 }
