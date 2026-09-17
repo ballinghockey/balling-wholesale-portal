@@ -48,7 +48,7 @@ export default async function CartPage() {
       .select('product_group, image_url')
       .in('product_group', productGroups)
       .not('image_url', 'is', null)
-      .order('sku')
+      .order('image_url')
 
     for (const gp of groupProducts ?? []) {
       if (!groupImageMap.has(gp.product_group) && gp.image_url) {
