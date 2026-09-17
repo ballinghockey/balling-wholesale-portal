@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
-import { getCustomerForUser } from '@/lib/catalog'
+import { getCustomerForUser, getAthleteForUser, getUserType } from '@/lib/catalog'
 import CartView from './CartView'
+import AthleteCartView from './AthleteCartView'
 
 export default async function CartPage() {
   const supabase = await createClient()
@@ -9,6 +10,60 @@ export default async function CartPage() {
 
   if (!authData?.user) redirect('/login')
 
+  const userType = await getUserType(authData.user.id)
+  if (!userType) redirect('/login')
+
+  // ATHLETE CART
+  if (userType === 'athlete') {
+    const athlete = await getAthleteForUser(authData.user.id)
+    if (!athlete) redirect('/login')
+
+    const { data: cartRows } = await supabase
+      .from('draft_cart')
+      .select(`sku, qty, products (product_name, product_group, category, size, image_url)`)
+      .eq('customer_id', athlete.athlete_id)
+      .order('sku')
+
+    const productGroups = [...new Set((cartRows ?? []).map((r: any) => r.products?.product_group).filter(Boolean))]
+    const groupImageMap = new Map<string, string>()
+
+    if (productGroups.length > 0) {
+      const { data: groupProducts } = await supabase
+        .from('products')
+        .select('product_group, image_url')
+        .in('product_group', productGroups)
+        .not('image_url', 'is', null)
+        .order('image_url')
+
+      for (const gp of groupProducts ?? []) {
+        if (!groupImageMap.has(gp.product_group) && gp.image_url) {
+          groupImageMap.set(gp.product_group, gp.image_url)
+        }
+      }
+    }
+
+    const items = (cartRows ?? []).map((row: any) => {
+      const p = row.products
+      return {
+        sku: row.sku,
+        qty: row.qty,
+        productName: p.product_name,
+        category: p.category,
+        size: p.size,
+        imageUrl: groupImageMap.get(p.product_group) ?? p.image_url ?? '',
+      }
+    })
+
+    return (
+      <AthleteCartView
+        items={items}
+        athleteId={athlete.athlete_id}
+        athleteName={athlete.athlete_name}
+      />
+    )
+  }
+
+  // CUSTOMER CART
   const customer = await getCustomerForUser(authData.user.id)
   if (!customer) redirect('/login')
 
@@ -29,19 +84,9 @@ export default async function CartPage() {
     .select('*')
     .eq('active', true)
 
-  // Build a map of product_group -> image_url (first image found per group)
-  // This ensures all SKUs of the same product show the same group image
-  const groupImageMap = new Map<string, string>()
-  for (const row of cartRows ?? []) {
-    const p = (row as any).products
-    if (p?.product_group && p?.image_url && !groupImageMap.has(p.product_group)) {
-      groupImageMap.set(p.product_group, p.image_url)
-    }
-  }
-
-  // Fetch group images for all product groups in cart
-  // (in case the cart SKU doesn't have the main group image)
   const productGroups = [...new Set((cartRows ?? []).map((r: any) => r.products?.product_group).filter(Boolean))]
+  const groupImageMap = new Map<string, string>()
+
   if (productGroups.length > 0) {
     const { data: groupProducts } = await supabase
       .from('products')
@@ -76,8 +121,6 @@ export default async function CartPage() {
     const promoDiscountPct = activePromo?.extra_discount_pct ?? 0
     const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
     const lineTotal = finalUnitPrice * row.qty
-
-    // Use group image instead of SKU-specific image
     const imageUrl = groupImageMap.get(p.product_group) ?? p.image_url ?? ''
 
     return {
