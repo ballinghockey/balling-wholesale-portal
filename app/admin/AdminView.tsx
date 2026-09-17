@@ -104,7 +104,7 @@ function OrderCard({
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-neutral-900 text-sm">Ref {ref}</span>
+              <span className="font-semibold text-neutral-900 text-sm">{title}</span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-md border ${STATUS_STYLES[currentStatus] ?? STATUS_STYLES.submitted}`}>
                 {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
               </span>
@@ -113,7 +113,7 @@ function OrderCard({
               )}
             </div>
             <p className="text-xs text-neutral-400 mt-0.5 truncate">
-              {formatDate(orderDate)} · {title} · {totalUnits} units
+              {formatDate(orderDate)} · Ref {ref} · {totalUnits} units
             </p>
           </div>
         </div>
