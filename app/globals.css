@@ -2,30 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force light mode — prevent browser dark mode from inverting colors */
-:root {
-  color-scheme: light only;
-}
+@layer base {
+  :root {
+    color-scheme: light;
+  }
 
-html {
-  color-scheme: light;
-}
+  html {
+    color-scheme: light !important;
+  }
 
-body {
-  background-color: #fafafa;
-  color: #111111;
-}
+  body {
+    background-color: #fafafa !important;
+    color: #111111 !important;
+  }
 
-/* Mobile: prevent horizontal overflow */
-* {
-  box-sizing: border-box;
-}
-
-/* Mobile: make product variant rows stack better on small screens */
-@media (max-width: 640px) {
-  /* Compact the size variant row */
-  .variant-row {
-    flex-wrap: wrap;
-    gap: 4px;
+  /* Force all backgrounds to stay white/light */
+  @media (prefers-color-scheme: dark) {
+    html {
+      filter: none !important;
+    }
+    body {
+      background-color: #fafafa !important;
+      color: #111111 !important;
+    }
   }
 }
