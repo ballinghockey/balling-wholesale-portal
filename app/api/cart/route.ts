@@ -15,11 +15,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'SKU required' }, { status: 400 })
   }
 
-  // Determine the entity ID (customer or athlete)
   let entityId = customerId
 
   if (!entityId) {
-    // Try to find customer first
     const { data: customer } = await supabase
       .from('customers')
       .select('customer_id')
@@ -29,14 +27,15 @@ export async function POST(req: NextRequest) {
     if (customer) {
       entityId = customer.customer_id
     } else {
-      // Try athlete
       const { data: athlete } = await supabase
         .from('athletes')
         .select('athlete_id')
         .eq('auth_user_id', authData.user.id)
         .maybeSingle()
 
-      if (athlete) entityId = athlete.athlete_id
+      if (athlete) {
+        entityId = athlete.athlete_id
+      }
     }
   }
 
@@ -55,9 +54,6 @@ export async function POST(req: NextRequest) {
       .from('draft_cart')
       .upsert({ customer_id: entityId, sku, qty }, { onConflict: 'customer_id,sku' })
   }
-
-  return NextResponse.json({ ok: true })
-}
 
   return NextResponse.json({ ok: true })
 }
