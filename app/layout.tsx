@@ -13,18 +13,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans bg-neutral-50">
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <meta name="color-scheme" content="light" />
+      </head>
+      <body className="min-h-full flex flex-col font-sans" style={{ backgroundColor: '#fafafa', colorScheme: 'light' }}>
         <nav className="bg-white border-b border-neutral-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
           <a href="/catalog" className="flex items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo-full.png"
               alt="Balling Hockey"
-              className="h-12 w-auto object-contain"
+              className="h-7 w-auto object-contain"
             />
           </a>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <a
               href="/orders"
               className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors hidden sm:block"
