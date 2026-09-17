@@ -14,7 +14,7 @@ export default async function CartPage() {
 
   const { data: cartRows } = await supabase
     .from('draft_cart')
-    .select(`sku, qty, products (product_name, category, size, image_url, base_price_gbp, base_price_eur)`)
+    .select(`sku, qty, products (product_name, product_group, category, size, image_url, base_price_gbp, base_price_eur)`)
     .eq('customer_id', customer.customer_id)
     .order('sku')
 
@@ -28,6 +28,34 @@ export default async function CartPage() {
     .from('promotions')
     .select('*')
     .eq('active', true)
+
+  // Build a map of product_group -> image_url (first image found per group)
+  // This ensures all SKUs of the same product show the same group image
+  const groupImageMap = new Map<string, string>()
+  for (const row of cartRows ?? []) {
+    const p = (row as any).products
+    if (p?.product_group && p?.image_url && !groupImageMap.has(p.product_group)) {
+      groupImageMap.set(p.product_group, p.image_url)
+    }
+  }
+
+  // Fetch group images for all product groups in cart
+  // (in case the cart SKU doesn't have the main group image)
+  const productGroups = [...new Set((cartRows ?? []).map((r: any) => r.products?.product_group).filter(Boolean))]
+  if (productGroups.length > 0) {
+    const { data: groupProducts } = await supabase
+      .from('products')
+      .select('product_group, image_url')
+      .in('product_group', productGroups)
+      .not('image_url', 'is', null)
+      .order('sku')
+
+    for (const gp of groupProducts ?? []) {
+      if (!groupImageMap.has(gp.product_group) && gp.image_url) {
+        groupImageMap.set(gp.product_group, gp.image_url)
+      }
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10)
   const symbol = customer.currency === 'GBP' ? '£' : '€'
@@ -49,13 +77,16 @@ export default async function CartPage() {
     const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
     const lineTotal = finalUnitPrice * row.qty
 
+    // Use group image instead of SKU-specific image
+    const imageUrl = groupImageMap.get(p.product_group) ?? p.image_url ?? ''
+
     return {
       sku: row.sku,
       qty: row.qty,
       productName: p.product_name,
       category: p.category,
       size: p.size,
-      imageUrl: p.image_url,
+      imageUrl,
       listPrice,
       customerDiscountPct,
       promoDiscountPct,
