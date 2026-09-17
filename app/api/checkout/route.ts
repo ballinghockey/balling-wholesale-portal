@@ -167,8 +167,9 @@ function buildBallingEmailHtml(params: {
   subtotal: number
   orderDate: string
   isAthlete: boolean
+  shippingAddress?: Record<string, string> | null
 }) {
-  const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate, isAthlete } = params
+  const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate, isAthlete, shippingAddress } = params
   const symbol = currency === 'GBP' ? '£' : '€'
 
   const rows = items.map((item) => `
@@ -215,6 +216,15 @@ function buildBallingEmailHtml(params: {
     </tfoot>
     ` : ''}
   </table>
+  ${shippingAddress ? `
+  <div style="margin-top:20px;padding:12px 16px;background:#f5f5f5;border-radius:6px;font-size:13px">
+    <strong>Shipping address:</strong><br>
+    ${shippingAddress.name}<br>
+    ${shippingAddress.line1}${shippingAddress.line2 ? '<br>' + shippingAddress.line2 : ''}<br>
+    ${shippingAddress.city}${shippingAddress.county ? ', ' + shippingAddress.county : ''}<br>
+    ${shippingAddress.postcode}<br>
+    ${shippingAddress.country}
+  </div>` : ''}
   <p style="margin-top:24px;font-size:12px;color:#888">Order ID: ${orderId}</p>
 </body>
 </html>`
@@ -256,7 +266,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { items, currency, customerId, customerName, isAthlete } = await req.json()
+  const { items, currency, customerId, customerName, isAthlete, shippingAddress } = await req.json()
 
   if (!items?.length) {
     return NextResponse.json({ error: 'No items in order' }, { status: 400 })
@@ -287,6 +297,7 @@ export async function POST(req: NextRequest) {
         vat_total: 0,
         grand_total: 0,
         status: 'submitted',
+        shipping_address: shippingAddress ?? null,
       })
 
     if (orderError) {
@@ -356,7 +367,7 @@ export async function POST(req: NextRequest) {
     const ballingEmailHtml = buildBallingEmailHtml({
       customerName, customerEmail: athlete?.email_login ?? '', orderId, items,
       currency: (athlete?.currency ?? currency) as 'GBP' | 'EUR',
-      subtotal: 0, orderDate, isAthlete: true,
+      subtotal: 0, orderDate, isAthlete: true, shippingAddress,
     })
 
     const ballingSubject = `New athlete request from ${customerName} · Ref ${orderId.slice(0,8).toUpperCase()}`
