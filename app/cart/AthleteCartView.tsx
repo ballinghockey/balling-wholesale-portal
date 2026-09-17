@@ -22,8 +22,14 @@ type ShippingAddress = {
   country: string
 }
 
-const UK_COUNTRIES = ['United Kingdom', 'Ireland']
-const EU_COUNTRIES = ['Spain', 'France', 'Germany', 'Netherlands', 'Belgium', 'Italy', 'Portugal', 'Sweden', 'Denmark', 'Norway', 'Finland', 'Austria', 'Switzerland', 'Poland', 'Other']
+const ALL_COUNTRIES = [
+  'United Kingdom', 'Ireland', 'Spain', 'France', 'Germany', 'Netherlands',
+  'Belgium', 'Italy', 'Portugal', 'Sweden', 'Denmark', 'Norway', 'Finland',
+  'Austria', 'Switzerland', 'Poland', 'Czech Republic', 'Slovakia', 'Hungary',
+  'Romania', 'Bulgaria', 'Croatia', 'Slovenia', 'Serbia', 'Greece', 'Turkey',
+  'Australia', 'New Zealand', 'United States', 'Canada', 'South Africa',
+  'Argentina', 'India', 'Malaysia', 'Singapore', 'Other',
+]
 
 export default function AthleteCartView({
   items: initialItems,
@@ -44,7 +50,7 @@ export default function AthleteCartView({
   const [error, setError] = useState<string | null>(null)
   const [addressErrors, setAddressErrors] = useState<Record<string, string>>({})
 
-  const countryOptions = warehouse === 'UK' ? UK_COUNTRIES : EU_COUNTRIES
+  const countryOptions = ALL_COUNTRIES
 
   const [address, setAddress] = useState<ShippingAddress>({
     name: athleteName,
