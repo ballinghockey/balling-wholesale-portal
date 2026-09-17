@@ -304,7 +304,11 @@ export default function AthleteCatalogView({
             {hasSubcategories &&
               Array.from(subcategoryBuckets.entries())
                 .filter(([key]) => key !== '')
-                .sort((a, b) => a[0].localeCompare(b[0]))
+                .sort((a, b) => {
+                  const orderA = Math.min(...a[1].map((g: any) => g.sortOrder ?? 0))
+                  const orderB = Math.min(...b[1].map((g: any) => g.sortOrder ?? 0))
+                  return orderA - orderB
+                })
                 .map(([subcat, items]) => renderBucket(subcat, items))}
             {hasSubcategories && visibleGroups.length > 0 && (
               <button
