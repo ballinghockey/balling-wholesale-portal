@@ -74,4 +74,4 @@ export default async function CatalogPage() {
   const initialCart = Object.fromEntries(cartMap)
 
   return <CatalogView groups={groups} initialCart={initialCart} />
-}
+} 
