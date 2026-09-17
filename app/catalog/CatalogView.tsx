@@ -124,7 +124,12 @@ export default function CatalogView({
             className="w-20 h-20 rounded-lg object-contain bg-neutral-100 p-1.5 flex-shrink-0 cursor-zoom-in hover:opacity-90 transition-opacity"
           />
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-neutral-900">{group.productName}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-medium text-neutral-900">{group.productName}</h3>
+              {group.onSale && (
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-600 flex-shrink-0">Sale</span>
+              )}
+            </div>
             <p className="text-xs text-neutral-400">{group.variants.length} {group.variants.length === 1 ? 'size' : 'sizes'}</p>
           </div>
         </div>
@@ -266,7 +271,11 @@ export default function CatalogView({
             {hasSubcategories &&
               Array.from(subcategoryBuckets.entries())
                 .filter(([key]) => key !== '')
-                .sort((a, b) => a[0].localeCompare(b[0]))
+                .sort((a, b) => {
+                  const orderA = Math.min(...a[1].map((g: any) => g.sortOrder ?? 0))
+                  const orderB = Math.min(...b[1].map((g: any) => g.sortOrder ?? 0))
+                  return orderA - orderB
+                })
                 .map(([subcat, items]) => renderBucket(subcat, items))}
 
             {/* "View all" button at category level — shows everything flat */}
