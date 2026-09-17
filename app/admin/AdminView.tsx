@@ -2,6 +2,16 @@
 
 import { useState } from 'react'
 
+const EUROPEAN_COUNTRIES = [
+  'Albania', 'Andorra', 'Austria', 'Belarus', 'Belgium', 'Bosnia and Herzegovina',
+  'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic', 'Denmark', 'Estonia',
+  'Finland', 'France', 'Germany', 'Greece', 'Hungary', 'Iceland', 'Ireland',
+  'Italy', 'Kosovo', 'Latvia', 'Liechtenstein', 'Lithuania', 'Luxembourg',
+  'Malta', 'Moldova', 'Monaco', 'Montenegro', 'Netherlands', 'North Macedonia',
+  'Norway', 'Poland', 'Portugal', 'Romania', 'San Marino', 'Serbia', 'Slovakia',
+  'Slovenia', 'Spain', 'Sweden', 'Switzerland', 'Ukraine', 'United Kingdom',
+]
+
 type OrderLine = {
   sku: string
   product_name: string
@@ -220,9 +230,11 @@ function AddAthleteForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div>
           <label className="block text-xs text-neutral-500 mb-1">Country</label>
-          <input value={form.country} onChange={(e) => set('country', e.target.value)}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            placeholder="United Kingdom" />
+          <select value={form.country} onChange={(e) => set('country', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white">
+            <option value="">Select country</option>
+            {EUROPEAN_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-xs text-neutral-500 mb-1">Warehouse *</label>
@@ -350,9 +362,11 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div>
           <label className="block text-xs text-neutral-500 mb-1">Country</label>
-          <input value={form.country} onChange={(e) => set('country', e.target.value)}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            placeholder="United Kingdom" />
+          <select value={form.country} onChange={(e) => set('country', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white">
+            <option value="">Select country</option>
+            {EUROPEAN_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-xs text-neutral-500 mb-1">Warehouse *</label>
