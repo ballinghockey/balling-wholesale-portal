@@ -6,57 +6,58 @@ export async function POST(req: NextRequest) {
 
   const { data: authData } = await supabase.auth.getUser()
   if (!authData?.user) {
-    return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { data: customer } = await supabase
-    .from('customers')
-    .select('customer_id')
-    .eq('auth_user_id', authData.user.id)
-    .single()
+  const { sku, qty, customerId } = await req.json()
 
-  if (!customer) {
-    return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+  if (!sku) {
+    return NextResponse.json({ error: 'SKU required' }, { status: 400 })
   }
 
-  const { sku, qty } = await req.json()
+  // Determine the entity ID (customer or athlete)
+  let entityId = customerId
 
-  if (!sku || typeof qty !== 'number' || qty < 0) {
-    return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
+  if (!entityId) {
+    // Try to find customer first
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('customer_id')
+      .eq('auth_user_id', authData.user.id)
+      .maybeSingle()
+
+    if (customer) {
+      entityId = customer.customer_id
+    } else {
+      // Try athlete
+      const { data: athlete } = await supabase
+        .from('athletes')
+        .select('athlete_id')
+        .eq('auth_user_id', authData.user.id)
+        .maybeSingle()
+
+      if (athlete) entityId = athlete.athlete_id
+    }
+  }
+
+  if (!entityId) {
+    return NextResponse.json({ error: 'No entity found for user' }, { status: 404 })
   }
 
   if (qty === 0) {
-    // Si la cantidad es 0, eliminamos la línea del carrito
-    const { error } = await supabase
+    await supabase
       .from('draft_cart')
       .delete()
-      .eq('customer_id', customer.customer_id)
+      .eq('customer_id', entityId)
       .eq('sku', sku)
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    return NextResponse.json({ ok: true, removed: true })
+  } else {
+    await supabase
+      .from('draft_cart')
+      .upsert({ customer_id: entityId, sku, qty }, { onConflict: 'customer_id,sku' })
   }
 
-  // Upsert: actualiza si ya existe la fila (customer_id, sku), crea si no.
-  // Esto resuelve, a nivel de base de datos, el problema de duplicados
-  // que tuvimos en la versión anterior con Softr.
-  const { error } = await supabase
-    .from('draft_cart')
-    .upsert(
-      {
-        customer_id: customer.customer_id,
-        sku,
-        qty,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'customer_id,sku' }
-    )
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+  return NextResponse.json({ ok: true })
+}
 
   return NextResponse.json({ ok: true })
 }
