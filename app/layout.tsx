@@ -21,10 +21,10 @@ export default function RootLayout({
             <img
               src="/logo-full.png"
               alt="Balling Hockey"
-              className="h-7 w-auto object-contain"
+              className="h-12 w-auto object-contain"
             />
           </a>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <a
               href="/orders"
               className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors hidden sm:block"
