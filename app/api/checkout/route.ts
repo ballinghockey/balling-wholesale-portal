@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 
-const BALLING_EMAILS = ['admin@ballinghockey.com', 'secure@ballinghockey.com']
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'orders@resend.dev'
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
 
 type OrderItem = {
   sku: string
@@ -57,21 +56,17 @@ function buildCustomerEmailHtml(params: {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
-    
-    <div style="background:#000;padding:24px 32px;display:flex;align-items:center">
+    <div style="background:#000;padding:24px 32px">
       <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:1px">BALLING</span>
       <span style="color:#666;font-size:12px;margin-left:12px;letter-spacing:2px;text-transform:uppercase">Wholesale Portal</span>
     </div>
-
     <div style="padding:32px">
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111">Order received</h1>
       <p style="margin:0 0 24px;color:#555;font-size:14px">Hi ${customerName}, your order has been received and is being reviewed by our team.</p>
-
       <div style="background:#f8f8f8;border-radius:6px;padding:16px;margin-bottom:24px;font-size:13px;color:#555">
         <strong style="color:#111">Order reference:</strong> ${orderId.slice(0,8).toUpperCase()}<br>
         <strong style="color:#111">Date:</strong> ${orderDate}
       </div>
-
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="background:#f5f5f5">
@@ -92,14 +87,12 @@ function buildCustomerEmailHtml(params: {
           </tr>
         </tfoot>
       </table>
-
       <div style="border-top:2px solid #000;margin-top:8px;padding-top:20px">
         <p style="margin:0;font-size:13px;color:#666;line-height:1.6">
-          Please note that this confirmation is based on your requested quantities. 
+          Please note that this confirmation is based on your requested quantities.
           Our team will review availability and may reach out if any adjustments are needed before final confirmation.
         </p>
       </div>
-
       <div style="margin-top:24px;padding-top:20px;border-top:1px solid #eee;font-size:12px;color:#aaa;text-align:center">
         Balling Hockey · Wholesale Portal<br>
         Questions? Contact your Balling representative.
@@ -137,13 +130,11 @@ function buildBallingEmailHtml(params: {
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:32px auto;color:#111">
   <h2 style="margin:0 0 4px">New wholesale order received</h2>
   <p style="margin:0 0 24px;color:#666;font-size:14px">${orderDate} · Ref: ${orderId.slice(0,8).toUpperCase()}</p>
-
   <table style="width:100%;border-collapse:collapse;margin-bottom:16px;background:#f5f5f5;border-radius:6px">
     <tr><td style="padding:12px 16px;font-size:13px"><strong>Customer:</strong> ${customerName}</td></tr>
     <tr><td style="padding:0 16px 12px;font-size:13px"><strong>Email:</strong> ${customerEmail}</td></tr>
     <tr><td style="padding:0 16px 12px;font-size:13px"><strong>Currency:</strong> ${currency}</td></tr>
   </table>
-
   <table style="width:100%;border-collapse:collapse">
     <thead>
       <tr style="background:#111;color:#fff">
@@ -162,16 +153,13 @@ function buildBallingEmailHtml(params: {
       </tr>
     </tfoot>
   </table>
-
-  <p style="margin-top:24px;font-size:12px;color:#888">
-    This order has been saved in Supabase · Order ID: ${orderId}
-  </p>
+  <p style="margin-top:24px;font-size:12px;color:#888">Order ID: ${orderId}</p>
 </body>
 </html>`
 }
 
 async function sendEmail(params: {
-  to: string | string[]
+  to: string
   subject: string
   html: string
 }) {
@@ -189,7 +177,7 @@ async function sendEmail(params: {
     },
     body: JSON.stringify({
       from: FROM_EMAIL,
-      to: Array.isArray(params.to) ? params.to : [params.to],
+      to: [params.to],
       subject: params.subject,
       html: params.html,
     }),
@@ -197,9 +185,9 @@ async function sendEmail(params: {
 
   if (!res.ok) {
     const err = await res.text()
-    console.error('[email] Resend error:', err)
+    console.error(`[email] Resend error sending to ${params.to}:`, err)
   } else {
-    console.log('[email] Sent to:', params.to)
+    console.log(`[email] Sent to: ${params.to}`)
   }
 }
 
@@ -217,7 +205,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No items in order' }, { status: 400 })
   }
 
-  // Fetch customer email + VAT rule
   const { data: customer } = await supabase
     .from('customers')
     .select('vat_rule, email_login')
@@ -292,7 +279,6 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('draft_cart').delete().eq('customer_id', customerId)
 
-  // Send emails (non-blocking — order is already saved even if email fails)
   const customerEmailHtml = buildCustomerEmailHtml({
     customerName,
     orderId,
@@ -313,18 +299,26 @@ export async function POST(req: NextRequest) {
     orderDate,
   })
 
-  await Promise.all([
-    sendEmail({
-      to: customer?.email_login ?? '',
-      subject: `Order confirmed – ${orderDate} · Ref ${orderId.slice(0,8).toUpperCase()}`,
-      html: customerEmailHtml,
-    }),
-    sendEmail({
-      to: BALLING_EMAILS,
-      subject: `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}`,
-      html: ballingEmailHtml,
-    }),
-  ])
+  const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}`
+
+  // Send all emails sequentially, one recipient per call
+  await sendEmail({
+    to: customer?.email_login ?? '',
+    subject: `Order confirmed – ${orderDate} · Ref ${orderId.slice(0,8).toUpperCase()}`,
+    html: customerEmailHtml,
+  })
+
+  await sendEmail({
+    to: 'admin@ballinghockey.com',
+    subject: ballingSubject,
+    html: ballingEmailHtml,
+  })
+
+  await sendEmail({
+    to: 'secure@ballinghockey.com',
+    subject: ballingSubject,
+    html: ballingEmailHtml,
+  })
 
   return NextResponse.json({ ok: true, orderId })
 }
