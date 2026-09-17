@@ -56,9 +56,9 @@ function buildCustomerEmailHtml(params: {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
-    <div style="background:#000;padding:24px 32px">
-      <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:1px">BALLING</span>
-      <span style="color:#666;font-size:12px;margin-left:12px;letter-spacing:2px;text-transform:uppercase">Wholesale Portal</span>
+    <div style="background:#000;padding:20px 32px;display:flex;align-items:center;justify-content:space-between">
+      <img src="https://balling-wholesale-portal.vercel.app/logo-full.png" alt="Balling Hockey" style="height:28px;width:auto;display:block;filter:invert(1)" />
+      <span style="color:#555;font-size:11px;letter-spacing:2px;text-transform:uppercase">Wholesale Portal</span>
     </div>
     <div style="padding:32px">
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111">Order received</h1>
