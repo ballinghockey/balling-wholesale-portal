@@ -59,6 +59,7 @@ export default async function CartPage() {
         items={items}
         athleteId={athlete.athlete_id}
         athleteName={athlete.athlete_name}
+        warehouse={athlete.warehouse}
       />
     )
   }
