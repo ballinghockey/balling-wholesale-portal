@@ -16,6 +16,7 @@ type OrderItem = {
   currency: 'GBP' | 'EUR'
   displayListPrice: string
   displayFinalPrice: string
+  category?: string
 }
 
 function formatCurrency(amount: number, currency: 'GBP' | 'EUR') {
@@ -103,6 +104,60 @@ function buildCustomerEmailHtml(params: {
 </html>`
 }
 
+function buildAthleteEmailHtml(params: {
+  athleteName: string
+  orderId: string
+  items: OrderItem[]
+  orderDate: string
+}) {
+  const { athleteName, orderId, items, orderDate } = params
+
+  const rows = items.map((item) => `
+    <tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:10px 8px;font-size:13px">
+        <strong>${item.productName}</strong><br>
+        <span style="color:#888;font-size:12px">${item.size} · SKU: ${item.sku}</span>
+      </td>
+      <td style="padding:10px 8px;font-size:13px;text-align:center">${item.qty}</td>
+    </tr>
+  `).join('')
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+    <div style="background:#000;padding:20px 32px;display:flex;align-items:center;justify-content:space-between">
+      <img src="https://balling-wholesale-portal.vercel.app/logo-full.png" alt="Balling Hockey" style="height:28px;width:auto;display:block;filter:invert(1)" />
+      <span style="color:#555;font-size:11px;letter-spacing:2px;text-transform:uppercase">Athlete Portal</span>
+    </div>
+    <div style="padding:32px">
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111">Equipment request received</h1>
+      <p style="margin:0 0 24px;color:#555;font-size:14px">Hi ${athleteName}, your equipment request has been received.</p>
+      <div style="background:#f8f8f8;border-radius:6px;padding:16px;margin-bottom:24px;font-size:13px;color:#555">
+        <strong style="color:#111">Reference:</strong> ${orderId.slice(0,8).toUpperCase()}<br>
+        <strong style="color:#111">Date:</strong> ${orderDate}
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#f5f5f5">
+            <th style="padding:10px 8px;font-size:12px;text-align:left;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Product</th>
+            <th style="padding:10px 8px;font-size:12px;text-align:center;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Qty</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="border-top:2px solid #000;margin-top:24px;padding-top:20px">
+        <p style="margin:0;font-size:13px;color:#666;line-height:1.6">
+          Our team will review your request and be in touch to arrange delivery.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 function buildBallingEmailHtml(params: {
   customerName: string
   customerEmail: string
@@ -111,8 +166,9 @@ function buildBallingEmailHtml(params: {
   currency: 'GBP' | 'EUR'
   subtotal: number
   orderDate: string
+  isAthlete: boolean
 }) {
-  const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate } = params
+  const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate, isAthlete } = params
   const symbol = currency === 'GBP' ? '£' : '€'
 
   const rows = items.map((item) => `
@@ -120,18 +176,20 @@ function buildBallingEmailHtml(params: {
       <td style="padding:8px;font-size:13px">${item.productName} · ${item.size}</td>
       <td style="padding:8px;font-size:13px;color:#888">${item.sku}</td>
       <td style="padding:8px;font-size:13px;text-align:center">${item.qty}</td>
+      ${!isAthlete ? `
       <td style="padding:8px;font-size:13px;text-align:right">${item.displayFinalPrice}</td>
       <td style="padding:8px;font-size:13px;text-align:right;font-weight:600">${formatCurrency(item.lineTotal, currency)}</td>
+      ` : ''}
     </tr>
   `).join('')
 
   return `<!DOCTYPE html>
 <html>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:32px auto;color:#111">
-  <h2 style="margin:0 0 4px">New wholesale order received</h2>
+  <h2 style="margin:0 0 4px">New ${isAthlete ? 'athlete equipment request' : 'wholesale order'} received</h2>
   <p style="margin:0 0 24px;color:#666;font-size:14px">${orderDate} · Ref: ${orderId.slice(0,8).toUpperCase()}</p>
   <table style="width:100%;border-collapse:collapse;margin-bottom:16px;background:#f5f5f5;border-radius:6px">
-    <tr><td style="padding:12px 16px;font-size:13px"><strong>Customer:</strong> ${customerName}</td></tr>
+    <tr><td style="padding:12px 16px;font-size:13px"><strong>${isAthlete ? 'Athlete' : 'Customer'}:</strong> ${customerName}</td></tr>
     <tr><td style="padding:0 16px 12px;font-size:13px"><strong>Email:</strong> ${customerEmail}</td></tr>
     <tr><td style="padding:0 16px 12px;font-size:13px"><strong>Currency:</strong> ${currency}</td></tr>
   </table>
@@ -141,28 +199,28 @@ function buildBallingEmailHtml(params: {
         <th style="padding:8px;font-size:12px;text-align:left">Product</th>
         <th style="padding:8px;font-size:12px;text-align:left">SKU</th>
         <th style="padding:8px;font-size:12px;text-align:center">Qty</th>
+        ${!isAthlete ? `
         <th style="padding:8px;font-size:12px;text-align:right">Unit</th>
         <th style="padding:8px;font-size:12px;text-align:right">Total</th>
+        ` : ''}
       </tr>
     </thead>
     <tbody>${rows}</tbody>
+    ${!isAthlete ? `
     <tfoot>
       <tr>
         <td colspan="4" style="padding:12px 8px;text-align:right;font-weight:600">Subtotal</td>
         <td style="padding:12px 8px;text-align:right;font-weight:700;font-size:15px">${symbol}${subtotal.toFixed(2)}</td>
       </tr>
     </tfoot>
+    ` : ''}
   </table>
   <p style="margin-top:24px;font-size:12px;color:#888">Order ID: ${orderId}</p>
 </body>
 </html>`
 }
 
-async function sendEmail(params: {
-  to: string
-  subject: string
-  html: string
-}) {
+async function sendEmail(params: { to: string; subject: string; html: string }) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
     console.error('[email] RESEND_API_KEY not set — skipping email')
@@ -184,8 +242,7 @@ async function sendEmail(params: {
   })
 
   if (!res.ok) {
-    const err = await res.text()
-    console.error(`[email] Resend error sending to ${params.to}:`, err)
+    console.error(`[email] Resend error sending to ${params.to}:`, await res.text())
   } else {
     console.log(`[email] Sent to: ${params.to}`)
   }
@@ -199,12 +256,119 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { items, currency, customerId, customerName } = await req.json()
+  const { items, currency, customerId, customerName, isAthlete } = await req.json()
 
   if (!items?.length) {
     return NextResponse.json({ error: 'No items in order' }, { status: 400 })
   }
 
+  const orderId = crypto.randomUUID()
+  const orderDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  if (isAthlete) {
+    // ATHLETE CHECKOUT
+    const { data: athlete } = await supabase
+      .from('athletes')
+      .select('email_login, currency')
+      .eq('athlete_id', customerId)
+      .single()
+
+    // Create order with zero prices
+    const { error: orderError } = await supabase
+      .from('order_requests')
+      .insert({
+        order_id: orderId,
+        customer_id: customerId,
+        currency: athlete?.currency ?? currency,
+        list_total: 0,
+        customer_discount_total: 0,
+        promo_discount_total: 0,
+        net_total: 0,
+        vat_total: 0,
+        grand_total: 0,
+        status: 'submitted',
+      })
+
+    if (orderError) {
+      return NextResponse.json({ error: orderError.message }, { status: 500 })
+    }
+
+    const orderLines = items.map((item: OrderItem) => ({
+      order_id: orderId,
+      sku: item.sku,
+      product_name: item.productName,
+      size: item.size,
+      qty: item.qty,
+      list_price: 0,
+      customer_discount_pct: 0,
+      promo_discount_pct: 0,
+      final_unit_price: 0,
+      line_total: 0,
+    }))
+
+    const { error: linesError } = await supabase
+      .from('order_lines')
+      .insert(orderLines)
+
+    if (linesError) {
+      return NextResponse.json({ error: linesError.message }, { status: 500 })
+    }
+
+    // Deduct credits by category
+    const creditDeductions: Record<string, number> = {}
+    const CATEGORY_CREDIT_MAP: Record<string, string> = {
+      sticks: 'sticks', bags: 'bags', accessories: 'accessories',
+      apparel: 'apparel', shoes: 'shoes', padel: 'padel',
+    }
+
+    for (const item of items as OrderItem[]) {
+      const cat = (item.category ?? '').toLowerCase()
+      const creditField = CATEGORY_CREDIT_MAP[cat]
+      if (creditField) {
+        creditDeductions[creditField] = (creditDeductions[creditField] ?? 0) + item.qty
+      }
+    }
+
+    // Fetch current credits and subtract
+    const { data: currentCredits } = await supabase
+      .from('athlete_credits')
+      .select('*')
+      .eq('athlete_id', customerId)
+      .single()
+
+    if (currentCredits) {
+      const updates: Record<string, number> = {}
+      for (const [field, used] of Object.entries(creditDeductions)) {
+        updates[field] = Math.max(0, (currentCredits[field] ?? 0) - used)
+      }
+
+      await supabase
+        .from('athlete_credits')
+        .update(updates)
+        .eq('athlete_id', customerId)
+    }
+
+    // Clear cart
+    await supabase.from('draft_cart').delete().eq('customer_id', customerId)
+
+    // Send emails
+    const athleteEmailHtml = buildAthleteEmailHtml({ athleteName: customerName, orderId, items, orderDate })
+    const ballingEmailHtml = buildBallingEmailHtml({
+      customerName, customerEmail: athlete?.email_login ?? '', orderId, items,
+      currency: (athlete?.currency ?? currency) as 'GBP' | 'EUR',
+      subtotal: 0, orderDate, isAthlete: true,
+    })
+
+    const ballingSubject = `New athlete request from ${customerName} · Ref ${orderId.slice(0,8).toUpperCase()}`
+
+    await sendEmail({ to: athlete?.email_login ?? '', subject: `Equipment request confirmed · Ref ${orderId.slice(0,8).toUpperCase()}`, html: athleteEmailHtml })
+    await sendEmail({ to: 'admin@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
+    await sendEmail({ to: 'secure@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
+
+    return NextResponse.json({ ok: true, orderId })
+  }
+
+  // CUSTOMER CHECKOUT (unchanged)
   const { data: customer } = await supabase
     .from('customers')
     .select('vat_rule, email_login')
@@ -233,9 +397,6 @@ export async function POST(req: NextRequest) {
     sum + item.listPrice * (1 - item.customerDiscountPct / 100) * (item.promoDiscountPct / 100) * item.qty, 0)
   const vatTotal = netTotal * (vatPct / 100)
   const grandTotal = netTotal + vatTotal
-
-  const orderId = crypto.randomUUID()
-  const orderDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const { error: orderError } = await supabase
     .from('order_requests')
@@ -279,46 +440,13 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('draft_cart').delete().eq('customer_id', customerId)
 
-  const customerEmailHtml = buildCustomerEmailHtml({
-    customerName,
-    orderId,
-    items,
-    currency,
-    subtotal: netTotal,
-    vatLabel,
-    orderDate,
-  })
-
-  const ballingEmailHtml = buildBallingEmailHtml({
-    customerName,
-    customerEmail: customer?.email_login ?? '',
-    orderId,
-    items,
-    currency,
-    subtotal: netTotal,
-    orderDate,
-  })
-
+  const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
+  const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false })
   const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}`
 
-  // Send all emails sequentially, one recipient per call
-  await sendEmail({
-    to: customer?.email_login ?? '',
-    subject: `Order confirmed – ${orderDate} · Ref ${orderId.slice(0,8).toUpperCase()}`,
-    html: customerEmailHtml,
-  })
-
-  await sendEmail({
-    to: 'admin@ballinghockey.com',
-    subject: ballingSubject,
-    html: ballingEmailHtml,
-  })
-
-  await sendEmail({
-    to: 'secure@ballinghockey.com',
-    subject: ballingSubject,
-    html: ballingEmailHtml,
-  })
+  await sendEmail({ to: customer?.email_login ?? '', subject: `Order confirmed – ${orderDate} · Ref ${orderId.slice(0,8).toUpperCase()}`, html: customerEmailHtml })
+  await sendEmail({ to: 'admin@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
+  await sendEmail({ to: 'secure@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
 
   return NextResponse.json({ ok: true, orderId })
 }
