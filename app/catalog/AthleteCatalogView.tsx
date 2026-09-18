@@ -16,7 +16,6 @@ const CREDIT_CATEGORY_MAP: Record<string, keyof AthleteCredits> = {
   Sticks: 'sticks',
   Bags: 'bags',
   Accessories: 'accessories',
-  Apparel: 'apparel',
   Shoes: 'shoes',
   Padel: 'padel',
 }
