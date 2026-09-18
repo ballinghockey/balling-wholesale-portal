@@ -148,7 +148,7 @@ function AthleteRow({ athlete, onSaved }: { athlete: Athlete; onSaved: () => voi
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); setEditing(false); onSaved() }
   }
 
-  const creditFields = ['sticks', 'bags', 'accessories', 'apparel', 'shoes', 'padel'] as const
+  const creditFields = ['sticks', 'bags', 'accessories', 'shoes', 'padel'] as const
 
   return (
     <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
@@ -282,7 +282,7 @@ function AddAthleteForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
     athlete_name: '', contact_name: '', email: '', country: '', warehouse: 'UK', currency: 'GBP',
     credits_sticks: '0', credits_bags: '0', credits_accessories: '0',
-    credits_apparel: '0', credits_shoes: '0', credits_padel: '0',
+    credits_shoes: '0', credits_padel: '0',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -309,14 +309,14 @@ function AddAthleteForm({ onSuccess }: { onSuccess: () => void }) {
     else {
       setSuccess(`✅ ${form.athlete_name} added (${data.athlete_id}). Invite sent to ${form.email}.`)
       setForm({ athlete_name: '', contact_name: '', email: '', country: '', warehouse: 'UK', currency: 'GBP',
-        credits_sticks: '0', credits_bags: '0', credits_accessories: '0', credits_apparel: '0', credits_shoes: '0', credits_padel: '0' })
+        credits_sticks: '0', credits_bags: '0', credits_accessories: '0', credits_shoes: '0', credits_padel: '0' })
       onSuccess()
     }
   }
 
   const creditFields = [
     { key: 'credits_sticks', label: 'Sticks' }, { key: 'credits_bags', label: 'Bags' },
-    { key: 'credits_accessories', label: 'Accessories' }, { key: 'credits_apparel', label: 'Apparel' },
+    { key: 'credits_accessories', label: 'Accessories' },
     { key: 'credits_shoes', label: 'Shoes' }, { key: 'credits_padel', label: 'Padel' },
   ]
 
