@@ -145,7 +145,8 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
           initialLines={currentLines}
           currency={currency ?? 'GBP'}
           onClose={() => setEditingOrder(false)}
-          onSaved={() => {
+          onSaved={(updatedLines) => {
+            setCurrentLines(updatedLines)
             setEditingOrder(false)
           }}
         />
