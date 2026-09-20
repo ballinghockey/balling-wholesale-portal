@@ -214,8 +214,8 @@ export async function getCatalogForAthlete(
       size: p.size,
       stock,
       stockStatus: getStockStatus(stock),
-      // Athletes don't see prices — these are zeroed out
-      listPrice: 0,
+      // Athletes don't see prices — use base price for sorting only
+      listPrice: athlete.currency === 'GBP' ? (p.base_price_gbp ?? 0) : (p.base_price_eur ?? 0),
       finalUnitPrice: 0,
       displayPrice: '',
       currency: athlete.currency,
