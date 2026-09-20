@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import OrderEditor from './OrderEditor'
 
 type OrderLine = {
   sku: string; product_name: string; size: string; qty: number
@@ -48,6 +49,8 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
   const [expanded, setExpanded] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(status)
   const [saving, setSaving] = useState(false)
+  const [editingOrder, setEditingOrder] = useState(false)
+  const [currentLines, setCurrentLines] = useState<OrderLine[]>(lines)
   const ref = orderId.slice(0, 8).toUpperCase()
   const symbol = currency === 'GBP' ? '£' : '€'
   const totalUnits = lines.reduce((sum, l) => sum + l.qty, 0)
@@ -126,7 +129,26 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
               </button>
             ))}
           </div>
+          <div className="mt-3 pt-3 border-t border-neutral-100">
+            <button
+              onClick={() => setEditingOrder(true)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+            >
+              ✏️ Edit order
+            </button>
+          </div>
         </div>
+      )}
+      {editingOrder && (
+        <OrderEditor
+          orderId={orderId}
+          initialLines={currentLines}
+          currency={currency ?? 'GBP'}
+          onClose={() => setEditingOrder(false)}
+          onSaved={() => {
+            setEditingOrder(false)
+          }}
+        />
       )}
     </div>
   )
