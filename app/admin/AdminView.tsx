@@ -202,6 +202,31 @@ function CustomerRow({ customer, onSaved }: { customer: Customer; onSaved: () =>
   const [discounts, setDiscounts] = useState(customer.discounts ?? { sticks_pct: 0, bags_pct: 0, accessories_pct: 0, apparel_pct: 0, shoes_pct: 0 })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [loyaltyEditing, setLoyaltyEditing] = useState(false)
+  const [loyaltyForm, setLoyaltyForm] = useState({ spend_threshold: '500', credit_amount: '50', active: false })
+  const [loyaltySaving, setLoyaltySaving] = useState(false)
+  const [loyaltySaved, setLoyaltySaved] = useState(false)
+
+  async function saveLoyalty() {
+    setLoyaltySaving(true)
+    await fetch('/api/admin/update-user', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'loyalty_rule',
+        id: customer.customer_id,
+        data: {
+          spend_threshold: parseFloat(loyaltyForm.spend_threshold),
+          credit_amount: parseFloat(loyaltyForm.credit_amount),
+          active: loyaltyForm.active,
+        }
+      }),
+    })
+    setLoyaltySaving(false)
+    setLoyaltySaved(true)
+    setTimeout(() => setLoyaltySaved(false), 2000)
+    setLoyaltyEditing(false)
+    onSaved()
+  }
 
   async function save() {
     setSaving(true)
