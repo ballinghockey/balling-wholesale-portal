@@ -147,7 +147,7 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
           onClose={() => setEditingOrder(false)}
           onSaved={(updatedLines) => {
             setCurrentLines(updatedLines)
-            setEditingOrder(false)
+            setTimeout(() => setEditingOrder(false), 0)
           }}
         />
       )}
