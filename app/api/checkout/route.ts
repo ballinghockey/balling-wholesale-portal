@@ -96,7 +96,7 @@ function buildCustomerEmailHtml(params: {
       </div>
       <div style="margin-top:24px;padding-top:20px;border-top:1px solid #eee;font-size:12px;color:#aaa;text-align:center">
         Balling Hockey · Wholesale Portal<br>
-        Questions? Contact your Balling representative.
+        Questions? Contact us at <a href='mailto:admin@ballinghockey.com' style='color:#666'>admin@ballinghockey.com</a>
       </div>
     </div>
   </div>
