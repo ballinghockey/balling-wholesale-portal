@@ -179,6 +179,10 @@ export async function getCatalogForCustomer(
 
   return Array.from(groups.values()).sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+    // Within same subcategory: sort by price descending (highest first)
+    const priceA = a.variants[0]?.listPrice ?? 0
+    const priceB = b.variants[0]?.listPrice ?? 0
+    if (priceB !== priceA) return priceB - priceA
     return a.productName.localeCompare(b.productName)
   })
 }
@@ -242,6 +246,10 @@ export async function getCatalogForAthlete(
 
   return Array.from(groups.values()).sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+    // Within same subcategory: sort by base price descending (highest first)
+    const priceA = a.variants[0]?.listPrice ?? 0
+    const priceB = b.variants[0]?.listPrice ?? 0
+    if (priceB !== priceA) return priceB - priceA
     return a.productName.localeCompare(b.productName)
   })
 }
