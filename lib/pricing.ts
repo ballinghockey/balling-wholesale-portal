@@ -1,5 +1,6 @@
 // Motor de pricing — replica la lógica validada en Google Sheets:
-// Precio lista -> Descuento cliente (por categoría) -> Promo activa -> Precio final
+// Wholesale: Precio mayorista -> Descuento cliente (por categoría) -> Promo activa -> Precio final
+// Club: Precio RRP -> Descuento club (por categoría) -> Precio final
 
 export type Category = 'Sticks' | 'Bags' | 'Accessories' | 'Apparel' | 'Shoes' | 'Padel'
 
@@ -9,6 +10,7 @@ export type Customer = {
   warehouse: 'UK' | 'EU'
   currency: 'GBP' | 'EUR'
   vat_rule: string
+  customer_type?: 'wholesale' | 'club'
 }
 
 export type CustomerDiscounts = {
@@ -36,6 +38,8 @@ export type Product = {
   size: string
   base_price_gbp: number
   base_price_eur: number
+  rrp_gbp?: number
+  rrp_eur?: number
   image_url: string
 }
 
@@ -45,7 +49,7 @@ const CATEGORY_FIELD_MAP: Record<Category, keyof CustomerDiscounts> = {
   Accessories: 'accessories_pct',
   Apparel: 'apparel_pct',
   Shoes: 'shoes_pct',
-  Padel: 'apparel_pct', // temporal: no hay columna padel_pct todavía
+  Padel: 'apparel_pct',
 }
 
 export function getCustomerDiscountForCategory(
@@ -79,6 +83,7 @@ export type PriceBreakdown = {
   promoDiscountPct: number
   finalUnitPrice: number
   displayPrice: string
+  isClub: boolean
 }
 
 export function calculatePrice(
@@ -88,16 +93,34 @@ export function calculatePrice(
   promotions: Promotion[],
   today: Date = new Date()
 ): PriceBreakdown {
-  const listPrice =
-    customer.currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
+  const isClub = customer.customer_type === 'club'
+  const symbol = customer.currency === 'GBP' ? '£' : '€'
 
+  if (isClub) {
+    // Club pricing: RRP as base, apply club discount
+    const rrp = customer.currency === 'GBP'
+      ? (product.rrp_gbp ?? product.base_price_gbp * 2)
+      : (product.rrp_eur ?? product.base_price_eur * 2)
+
+    const customerDiscountPct = getCustomerDiscountForCategory(discounts, product.category)
+    const finalUnitPrice = rrp * (1 - customerDiscountPct / 100)
+
+    return {
+      listPrice: rrp,
+      currency: customer.currency,
+      customerDiscountPct,
+      promoDiscountPct: 0,
+      finalUnitPrice: Math.round(finalUnitPrice * 100) / 100,
+      displayPrice: `${symbol}${finalUnitPrice.toFixed(2)}`,
+      isClub: true,
+    }
+  }
+
+  // Wholesale pricing (unchanged)
+  const listPrice = customer.currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
   const customerDiscountPct = getCustomerDiscountForCategory(discounts, product.category)
   const promoDiscountPct = getActivePromoDiscount(promotions, product.category, today)
-
-  const finalUnitPrice =
-    listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
-
-  const symbol = customer.currency === 'GBP' ? '£' : '€'
+  const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
 
   return {
     listPrice,
@@ -106,6 +129,7 @@ export function calculatePrice(
     promoDiscountPct,
     finalUnitPrice: Math.round(finalUnitPrice * 100) / 100,
     displayPrice: `${symbol}${finalUnitPrice.toFixed(2)}`,
+    isClub: false,
   }
 }
 
