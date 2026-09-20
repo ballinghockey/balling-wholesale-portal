@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const {
     customer_name, contact_name, email, country, region,
-    warehouse, currency, vat_rule, shipping_rule,
+    warehouse, currency, vat_rule, shipping_rule, customer_type,
     discount_sticks, discount_bags, discount_accessories,
     discount_apparel, discount_shoes,
   } = await req.json()
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       currency,
       vat_rule,
       shipping_rule: shipping_rule || 'STANDARD',
+      customer_type: customer_type || 'wholesale',
       active: true,
     })
 
