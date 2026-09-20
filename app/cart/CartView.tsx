@@ -32,12 +32,14 @@ export default function CartView({
   customerId,
   customerName,
   vatRule,
+  loyaltyBalance = 0,
 }: {
   items: CartItem[]
   currency: 'GBP' | 'EUR'
   customerId: string
   customerName: string
   vatRule: string
+  loyaltyBalance?: number
 }) {
   const router = useRouter()
   const [items, setItems] = useState<CartItem[]>(initialItems)
@@ -45,11 +47,16 @@ export default function CartView({
   const [confirming, setConfirming] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [creditApplied, setCreditApplied] = useState(false)
 
   const symbol = currency === 'GBP' ? '£' : '€'
   const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0)
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0)
   const vatLabel = VAT_LABELS[vatRule] ?? ''
+
+  // Credit to apply: min of balance and subtotal
+  const creditToApply = creditApplied ? Math.min(loyaltyBalance, subtotal) : 0
+  const finalTotal = Math.max(0, subtotal - creditToApply)
 
   const saveQty = useCallback(async (sku: string, qty: number) => {
     await fetch('/api/cart', {
@@ -91,7 +98,13 @@ export default function CartView({
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, currency, customerId, customerName }),
+        body: JSON.stringify({
+          items,
+          currency,
+          customerId,
+          customerName,
+          creditApplied: creditToApply,
+        }),
       })
 
       if (!res.ok) {
@@ -158,6 +171,36 @@ export default function CartView({
         </button>
       </header>
 
+      {/* Loyalty credit banner */}
+      {loyaltyBalance > 0 && (
+        <div className={`flex items-center justify-between px-4 py-3 rounded-xl border mb-4 ${
+          creditApplied
+            ? 'bg-emerald-50 border-emerald-200'
+            : 'bg-neutral-50 border-neutral-200'
+        }`}>
+          <div>
+            <p className="text-sm font-medium text-neutral-900">
+              🎁 Loyalty credit: {symbol}{loyaltyBalance.toFixed(2)} available
+            </p>
+            {creditApplied && (
+              <p className="text-xs text-emerald-600 mt-0.5">
+                -{symbol}{creditToApply.toFixed(2)} applied to this order
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setCreditApplied(!creditApplied)}
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              creditApplied
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : 'bg-neutral-900 text-white hover:bg-neutral-800'
+            }`}
+          >
+            {creditApplied ? 'Remove' : 'Apply credit'}
+          </button>
+        </div>
+      )}
+
       <div className="space-y-3">
         {items.map((item) => (
           <div key={item.sku} className="bg-white rounded-xl border border-neutral-200 p-4">
@@ -201,9 +244,7 @@ export default function CartView({
                       className="w-16 rounded-lg border border-neutral-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     />
                   </div>
-
                   <div className="flex-1" />
-
                   <div className="text-right">
                     {item.customerDiscountPct > 0 && (
                       <p className="text-xs text-neutral-400 line-through">{item.displayListPrice}</p>
@@ -228,10 +269,20 @@ export default function CartView({
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm text-neutral-500">{totalUnits} {totalUnits === 1 ? 'unit' : 'units'}</span>
-            <span className="text-lg font-semibold text-neutral-900">
-              Subtotal: {symbol}{subtotal.toFixed(2)}
-            </span>
+            <div className="text-right">
+              {creditApplied && creditToApply > 0 && (
+                <p className="text-xs text-neutral-400 line-through">{symbol}{subtotal.toFixed(2)}</p>
+              )}
+              <span className="text-lg font-semibold text-neutral-900">
+                Subtotal: {symbol}{finalTotal.toFixed(2)}
+              </span>
+            </div>
           </div>
+          {creditApplied && creditToApply > 0 && (
+            <p className="text-xs text-emerald-600 text-right mb-1">
+              -{symbol}{creditToApply.toFixed(2)} loyalty credit applied
+            </p>
+          )}
           {vatLabel && (
             <p className="text-xs text-neutral-400 text-right mb-3">{vatLabel}</p>
           )}
