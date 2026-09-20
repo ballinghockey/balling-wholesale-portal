@@ -424,6 +424,7 @@ export async function POST(req: NextRequest) {
       net_total: Math.round(netTotal * 100) / 100,
       vat_total: Math.round(vatTotal * 100) / 100,
       grand_total: Math.round(grandTotal * 100) / 100,
+      loyalty_credit_applied: creditApplied ?? 0,
       status: 'submitted',
     })
 
