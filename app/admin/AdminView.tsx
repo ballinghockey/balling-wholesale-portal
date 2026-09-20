@@ -264,6 +264,44 @@ function CustomerRow({ customer, onSaved }: { customer: Customer; onSaved: () =>
           </button>
         </div>
       )}
+
+      {/* Loyalty config */}
+      <div className="border-t border-neutral-100 px-4 py-3 flex items-center justify-between">
+        <p className="text-xs text-neutral-500">Loyalty rewards</p>
+        <button onClick={() => setLoyaltyEditing(!loyaltyEditing)}
+          className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors">
+          {loyaltyEditing ? 'Cancel' : 'Configure'}
+        </button>
+      </div>
+      {loyaltyEditing && (
+        <div className="px-4 pb-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id={`loyalty-active-${customer.customer_id}`}
+              checked={loyaltyForm.active}
+              onChange={(e) => setLoyaltyForm(prev => ({ ...prev, active: e.target.checked }))}
+              className="rounded" />
+            <label htmlFor={`loyalty-active-${customer.customer_id}`} className="text-xs text-neutral-600">Enable loyalty rewards</label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Spend threshold</label>
+              <input type="number" min={1} value={loyaltyForm.spend_threshold}
+                onChange={(e) => setLoyaltyForm(prev => ({ ...prev, spend_threshold: e.target.value }))}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+            </div>
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Credit amount</label>
+              <input type="number" min={1} value={loyaltyForm.credit_amount}
+                onChange={(e) => setLoyaltyForm(prev => ({ ...prev, credit_amount: e.target.value }))}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+            </div>
+          </div>
+          <button onClick={saveLoyalty} disabled={loyaltySaving}
+            className="w-full rounded-lg bg-neutral-900 text-white py-2 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors">
+            {loyaltySaving ? 'Saving...' : loyaltySaved ? '✅ Saved' : 'Save loyalty config'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
