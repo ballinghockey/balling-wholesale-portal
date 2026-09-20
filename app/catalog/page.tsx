@@ -39,7 +39,6 @@ export default async function CatalogPage() {
       getAthleteCredits(athlete.athlete_id),
     ])
 
-    // Get current cart to calculate used credits
     const { data: cartRows } = await supabase
       .from('draft_cart')
       .select('sku, qty, products(category)')
@@ -71,7 +70,26 @@ export default async function CatalogPage() {
     getDraftCartForCustomer(customer.customer_id),
   ])
 
+  // Fetch loyalty data
+  const [{ data: loyaltyData }, { data: loyaltyRule }] = await Promise.all([
+    supabase.from('customer_loyalty').select('*').eq('customer_id', customer.customer_id).maybeSingle(),
+    supabase.from('loyalty_rules').select('*').eq('customer_id', customer.customer_id).maybeSingle(),
+  ])
+
   const initialCart = Object.fromEntries(cartMap)
 
-  return <CatalogView groups={groups} initialCart={initialCart} />
-} 
+  return (
+    <CatalogView
+      groups={groups}
+      initialCart={initialCart}
+      loyalty={loyaltyData ? {
+        creditBalance: loyaltyData.credit_balance,
+        totalSpent: loyaltyData.total_spent,
+        currency: loyaltyData.currency as 'GBP' | 'EUR',
+        spendThreshold: loyaltyRule?.spend_threshold ?? 500,
+        creditAmount: loyaltyRule?.credit_amount ?? 50,
+        active: loyaltyRule?.active ?? false,
+      } : null}
+    />
+  )
+}
