@@ -24,7 +24,7 @@ export default async function AdminPage() {
 
   const { data: allOrders } = await admin
     .from('order_requests')
-    .select(`order_id, order_date, currency, net_total, grand_total, status, customer_id, shipping_address, order_lines (sku, product_name, size, qty, final_unit_price, line_total)`)
+    .select(`order_id, order_date, currency, net_total, grand_total, status, customer_id, shipping_address, order_lines (id, sku, product_name, size, qty, final_unit_price, line_total)`)
     .order('order_date', { ascending: false })
 
   const { data: customers } = await admin
