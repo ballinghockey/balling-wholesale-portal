@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { items, currency, customerId, customerName, isAthlete, shippingAddress } = await req.json()
+  const { items, currency, customerId, customerName, isAthlete, shippingAddress, creditApplied } = await req.json()
 
   if (!items?.length) {
     return NextResponse.json({ error: 'No items in order' }, { status: 400 })
@@ -450,6 +450,23 @@ export async function POST(req: NextRequest) {
   }
 
   await supabase.from('draft_cart').delete().eq('customer_id', customerId)
+
+  // Deduct loyalty credit if applied
+  if (!isAthlete && creditApplied && creditApplied > 0) {
+    const { data: loyalty } = await supabase
+      .from('customer_loyalty')
+      .select('credit_balance')
+      .eq('customer_id', customerId)
+      .maybeSingle()
+
+    if (loyalty) {
+      const newBalance = Math.max(0, (loyalty.credit_balance ?? 0) - creditApplied)
+      await supabase
+        .from('customer_loyalty')
+        .update({ credit_balance: newBalance, updated_at: new Date().toISOString() })
+        .eq('customer_id', customerId)
+    }
+  }
 
   const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
   const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false })
