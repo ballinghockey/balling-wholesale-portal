@@ -59,5 +59,13 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  if (type === 'loyalty_rule') {
+    // Upsert loyalty rule
+    const { error } = await serviceClient
+      .from('loyalty_rules')
+      .upsert({ customer_id: id, ...data }, { onConflict: 'customer_id' })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
   return NextResponse.json({ ok: true })
 }
