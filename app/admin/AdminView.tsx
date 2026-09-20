@@ -378,6 +378,7 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
     customer_name: '', contact_name: '', email: '', country: '',
     warehouse: 'UK', currency: 'GBP', vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
+    customer_type: 'wholesale',
     discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0',
   })
   const [loading, setLoading] = useState(false)
@@ -467,9 +468,19 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
             {vatOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1">Customer type *</label>
+          <select value={form.customer_type} onChange={(e) => set('customer_type', e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white">
+            <option value="wholesale">Wholesale (base price)</option>
+            <option value="club">Club (RRP with discount)</option>
+          </select>
+        </div>
       </div>
       <div>
-        <p className="text-xs text-neutral-500 mb-2 font-medium">Additional discount % per category</p>
+        <p className="text-xs text-neutral-500 mb-2 font-medium">
+          {form.customer_type === 'club' ? 'Club discount % off RRP per category' : 'Additional discount % per category'}
+        </p>
         <div className="grid grid-cols-5 gap-2">
           {discountFields.map(({ key, label }) => (
             <div key={key}>
