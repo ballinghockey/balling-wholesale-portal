@@ -79,7 +79,7 @@ export async function getCustomerForUser(authUserId: string): Promise<Customer |
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('customers')
-    .select('customer_id, customer_name, warehouse, currency, vat_rule')
+    .select('customer_id, customer_name, warehouse, currency, vat_rule, customer_type')
     .eq('auth_user_id', authUserId)
     .single()
 
