@@ -11,6 +11,7 @@ type WholesaleOrder = {
   order_id: string; order_date: string; currency: string; net_total: number
   grand_total: number; status: string; customer_id: string
   customerName: string; customerEmail: string; order_lines: OrderLine[]
+  loyalty_credit_applied?: number
 }
 type AthleteOrder = {
   order_id: string; order_date: string; currency: string; status: string
@@ -41,10 +42,11 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function OrderCard({ orderId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete }: {
+function OrderCard({ orderId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete, loyaltyCreditApplied }: {
   orderId: string; orderDate: string; status: string; title: string; subtitle: string
   currency?: string; total?: number; lines: OrderLine[]
   shippingAddress?: Record<string, string> | null; isAthlete: boolean
+  loyaltyCreditApplied?: number
 }) {
   const [expanded, setExpanded] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(status)
@@ -120,6 +122,16 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
               ))}
             </tbody>
           </table>
+          {!isAthlete && total !== undefined && loyaltyCreditApplied !== undefined && loyaltyCreditApplied > 0 && (
+            <div className="mb-3 px-3 py-2 bg-emerald-50 rounded-lg">
+              <p className="text-xs text-emerald-700">
+                🎁 Loyalty credit applied: -{symbol}{loyaltyCreditApplied.toFixed(2)}
+              </p>
+              <p className="text-xs text-emerald-600 font-semibold">
+                Total after credit: {symbol}{(total - loyaltyCreditApplied).toFixed(2)}
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-neutral-500">Status:</span>
             {STATUS_OPTIONS.map((s) => (
@@ -147,7 +159,7 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
           onClose={() => setEditingOrder(false)}
           onSaved={(updatedLines) => {
             setCurrentLines(updatedLines)
-            setTimeout(() => setEditingOrder(false), 0)
+            setEditingOrder(false)
           }}
         />
       )}
@@ -637,7 +649,8 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
             : wholesaleOrders.map((order) => (
               <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
                 status={order.status} title={order.customerName} subtitle={order.customerEmail}
-                currency={order.currency} total={order.net_total} lines={order.order_lines} isAthlete={false} />
+                currency={order.currency} total={order.net_total} lines={order.order_lines} isAthlete={false}
+                loyaltyCreditApplied={order.loyalty_credit_applied} />
             ))}
         </div>
       )}
