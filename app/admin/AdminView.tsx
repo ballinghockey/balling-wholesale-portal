@@ -4,7 +4,7 @@ import { useState } from 'react'
 import OrderEditor from './OrderEditor'
 
 type OrderLine = {
-  sku: string; product_name: string; size: string; qty: number
+  id: string; sku: string; product_name: string; size: string; qty: number
   final_unit_price?: number; line_total?: number
 }
 type WholesaleOrder = {
