@@ -477,8 +477,9 @@ export async function POST(req: NextRequest) {
 
   const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
   const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false, creditApplied: creditApplied ?? 0 })
+  const creditSymbol = currency === 'GBP' ? '£' : '€'
   const creditNote = creditApplied && creditApplied > 0
-    ? ` (${symbol}${Number(creditApplied).toFixed(2)} loyalty credit applied)`
+    ? ` (${creditSymbol}${Number(creditApplied).toFixed(2)} loyalty credit applied)`
     : ''
   const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}${creditNote}`
 
