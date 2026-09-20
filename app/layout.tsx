@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import LogoutButton from "./LogoutButton";
+import { createClient } from "@/lib/supabase-server";
 
 export const metadata: Metadata = {
   title: "Balling Hockey — Wholesale Portal",
   description: "Wholesale order portal for Balling Hockey distributors and retailers",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
+  const email = authData?.user?.email ?? null
+
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col font-sans bg-neutral-50">
@@ -25,6 +30,10 @@ export default function RootLayout({
             />
           </a>
           <div className="flex items-center gap-4">
+            {email && (
+              <span className="text-xs text-neutral-400 hidden sm:block">{email}</span>
+            )}
+            <span className="text-neutral-200 hidden sm:block">|</span>
             <span className="text-xs text-neutral-400 hidden sm:block tracking-wide uppercase">Wholesale Portal</span>
             <LogoutButton />
           </div>
