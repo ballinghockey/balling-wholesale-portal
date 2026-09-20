@@ -451,6 +451,49 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('draft_cart').delete().eq('customer_id', customerId)
 
+  // Update loyalty: accumulate spending and grant credit if threshold reached
+  if (!isAthlete) {
+    const { data: loyaltyRule } = await supabase
+      .from('loyalty_rules')
+      .select('*')
+      .eq('customer_id', customerId)
+      .eq('active', true)
+      .maybeSingle()
+
+    if (loyaltyRule) {
+      const { data: loyalty } = await supabase
+        .from('customer_loyalty')
+        .select('*')
+        .eq('customer_id', customerId)
+        .maybeSingle()
+
+      const currentSpent = loyalty?.total_spent ?? 0
+      const newTotalSpent = currentSpent + netTotal
+
+      const oldCycles = Math.floor(currentSpent / loyaltyRule.spend_threshold)
+      const newCycles = Math.floor(newTotalSpent / loyaltyRule.spend_threshold)
+      const newCreditsEarned = (newCycles - oldCycles) * loyaltyRule.credit_amount
+
+      const currentBalance = loyalty?.credit_balance ?? 0
+      const newBalance = currentBalance + newCreditsEarned
+
+      if (loyalty) {
+        await supabase.from('customer_loyalty').update({
+          total_spent: newTotalSpent,
+          credit_balance: newBalance,
+          updated_at: new Date().toISOString(),
+        }).eq('customer_id', customerId)
+      } else {
+        await supabase.from('customer_loyalty').insert({
+          customer_id: customerId,
+          total_spent: newTotalSpent,
+          credit_balance: newBalance,
+          currency,
+        })
+      }
+    }
+  }
+
   const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
   const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false })
   const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}`
