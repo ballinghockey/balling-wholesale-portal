@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useCallback } from 'react'
 import type { ProductGroupWithVariants } from '@/lib/catalog'
+import LoyaltyBar from './LoyaltyBar'
 
 const CATEGORIES = ['Sticks', 'Bags', 'Accessories', 'Apparel', 'Shoes', 'Padel'] as const
 const DEFAULT_VISIBLE = 5
@@ -17,12 +18,23 @@ function formatPrice(amount: number, currency: 'GBP' | 'EUR') {
   return `${symbol}${amount.toFixed(2)}`
 }
 
+type LoyaltyData = {
+  creditBalance: number
+  totalSpent: number
+  currency: 'GBP' | 'EUR'
+  spendThreshold: number
+  creditAmount: number
+  active: boolean
+}
+
 export default function CatalogView({
   groups,
   initialCart,
+  loyalty,
 }: {
   groups: ProductGroupWithVariants[]
   initialCart: Record<string, number>
+  loyalty?: LoyaltyData | null
 }) {
   const availableCategories = useMemo(() => {
     const present = new Set(groups.map((g) => g.category))
@@ -308,6 +320,18 @@ export default function CatalogView({
           </button>
         ))}
       </nav>
+
+      {loyalty?.active && (
+        <div className="mt-4">
+          <LoyaltyBar
+            creditBalance={loyalty.creditBalance}
+            totalSpent={loyalty.totalSpent}
+            spendThreshold={loyalty.spendThreshold}
+            creditAmount={loyalty.creditAmount}
+            currency={loyalty.currency}
+          />
+        </div>
+      )}
 
       {activeCategoryDiscount > 0 && (
         <p className="text-xs text-emerald-700 bg-emerald-50 inline-block px-2.5 py-1 rounded-md mb-6 mt-3">
