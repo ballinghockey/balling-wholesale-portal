@@ -169,8 +169,9 @@ function buildBallingEmailHtml(params: {
   orderDate: string
   isAthlete: boolean
   shippingAddress?: Record<string, string> | null
+  creditApplied?: number
 }) {
-  const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate, isAthlete, shippingAddress } = params
+  const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate, isAthlete, shippingAddress, creditApplied } = params
   const symbol = currency === 'GBP' ? '£' : '€'
 
   const rows = items.map((item) => `
@@ -475,7 +476,7 @@ export async function POST(req: NextRequest) {
   }
 
   const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
-  const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false })
+  const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false, creditApplied: creditApplied ?? 0 })
   const creditNote = creditApplied && creditApplied > 0
     ? ` (${symbol}${Number(creditApplied).toFixed(2)} loyalty credit applied)`
     : ''
