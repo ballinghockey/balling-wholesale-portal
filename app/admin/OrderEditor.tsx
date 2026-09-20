@@ -32,7 +32,7 @@ export default function OrderEditor({
   initialLines: OrderLine[]
   currency: string
   onClose: () => void
-  onSaved: () => void
+  onSaved: (updatedLines: OrderLine[]) => void
 }) {
   const symbol = currency === 'GBP' ? '£' : '€'
   const [lines, setLines] = useState<OrderLine[]>(initialLines)
@@ -230,7 +230,7 @@ export default function OrderEditor({
             Cancel
           </button>
           <button
-            onClick={() => { onSaved(); onClose() }}
+            onClick={() => { onSaved(lines); onClose() }}
             className="flex-1 rounded-lg bg-neutral-900 text-white py-2.5 text-sm font-medium hover:bg-neutral-800 transition-colors"
           >
             Done
