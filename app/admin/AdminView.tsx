@@ -411,6 +411,7 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
       setSuccess(`✅ ${form.customer_name} added (${data.customer_id}). Invite sent to ${form.email}.`)
       setForm({ customer_name: '', contact_name: '', email: '', country: '', warehouse: 'UK', currency: 'GBP',
         vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
+        customer_type: 'wholesale',
         discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0' })
       onSuccess()
     }
