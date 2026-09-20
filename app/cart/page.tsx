@@ -142,6 +142,13 @@ export default async function CartPage() {
     }
   })
 
+  // Fetch loyalty balance
+  const { data: loyaltyData } = await supabase
+    .from('customer_loyalty')
+    .select('credit_balance')
+    .eq('customer_id', customer.customer_id)
+    .maybeSingle()
+
   return (
     <CartView
       items={items}
@@ -149,6 +156,7 @@ export default async function CartPage() {
       customerId={customer.customer_id}
       customerName={customer.customer_name}
       vatRule={customer.vat_rule}
+      loyaltyBalance={loyaltyData?.credit_balance ?? 0}
     />
   )
 }
