@@ -455,23 +455,27 @@ export async function POST(req: NextRequest) {
   await supabase.from('draft_cart').delete().eq('customer_id', customerId)
 
   // Deduct loyalty credit if applied — use service role to bypass RLS
+  console.log('[loyalty] creditApplied:', creditApplied, 'customerId:', customerId, 'isAthlete:', isAthlete)
   if (!isAthlete && creditApplied && creditApplied > 0) {
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    const { data: loyalty } = await serviceClient
+    const { data: loyalty, error: loyaltyError } = await serviceClient
       .from('customer_loyalty')
       .select('credit_balance')
       .eq('customer_id', customerId)
       .maybeSingle()
 
+    console.log('[loyalty] current balance:', loyalty?.credit_balance, 'error:', loyaltyError?.message)
+
     if (loyalty) {
       const newBalance = Math.max(0, (loyalty.credit_balance ?? 0) - creditApplied)
-      await serviceClient
+      const { error: updateError } = await serviceClient
         .from('customer_loyalty')
         .update({ credit_balance: newBalance, updated_at: new Date().toISOString() })
         .eq('customer_id', customerId)
+      console.log('[loyalty] updated to:', newBalance, 'error:', updateError?.message)
     }
   }
 
