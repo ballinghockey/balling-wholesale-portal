@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import AdminView from './AdminView'
 
 export default async function AdminPage() {
@@ -16,29 +17,35 @@ export default async function AdminPage() {
 
   if (!customer?.is_admin) redirect('/catalog')
 
+  // Use service role to bypass RLS for admin queries
+  const admin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   // Fetch all orders
-  const { data: allOrders } = await supabase
+  const { data: allOrders } = await admin
     .from('order_requests')
     .select(`order_id, order_date, currency, net_total, grand_total, status, customer_id, shipping_address, order_lines (sku, product_name, size, qty, final_unit_price, line_total)`)
     .order('order_date', { ascending: false })
 
   // Fetch customers with discounts
-  const { data: customers } = await supabase
+  const { data: customers } = await admin
     .from('customers')
     .select('customer_id, customer_name, contact_name, email_login, country, warehouse, currency, vat_rule, active')
     .order('customer_id')
 
-  const { data: customerDiscounts } = await supabase
+  const { data: customerDiscounts } = await admin
     .from('customer_discounts')
     .select('*')
 
   // Fetch athletes with credits
-  const { data: athletes } = await supabase
+  const { data: athletes } = await admin
     .from('athletes')
     .select('athlete_id, athlete_name, contact_name, email_login, country, warehouse, currency, active')
     .order('athlete_id')
 
-  const { data: athleteCredits } = await supabase
+  const { data: athleteCredits } = await admin
     .from('athlete_credits')
     .select('*')
 
@@ -61,7 +68,7 @@ export default async function AdminPage() {
   }
 
   const customersWithDiscounts = (customers ?? [])
-    .filter((c) => !c.customer_id.startsWith('master'))
+    .filter((c) => c.customer_id !== 'master')
     .map((c) => ({ ...c, discounts: discountMap.get(c.customer_id) ?? null }))
 
   const athletesWithCredits = (athletes ?? []).map((a) => ({
