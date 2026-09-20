@@ -19,7 +19,7 @@ type AthleteOrder = {
 type Customer = {
   customer_id: string; customer_name: string; contact_name: string
   email_login: string; country: string; warehouse: string; currency: string
-  vat_rule: string; active: boolean
+  vat_rule: string; active: boolean; customer_type?: string
   discounts: { sticks_pct: number; bags_pct: number; accessories_pct: number; apparel_pct: number; shoes_pct: number } | null
 }
 type Athlete = {
@@ -390,8 +390,11 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
       const next = { ...prev, [key]: value }
       if (key === 'warehouse') {
         next.currency = value === 'UK' ? 'GBP' : 'EUR'
-        next.vat_rule = value === 'UK' ? 'UK_STANDARD' : 'EU_EXEMPT'
+        next.vat_rule = next.customer_type === 'club' ? 'CLUB_INCLUDED' : (value === 'UK' ? 'UK_STANDARD' : 'EU_EXEMPT')
         next.shipping_rule = value === 'UK' ? 'UK_STANDARD' : 'EU_STANDARD'
+      }
+      if (key === 'customer_type') {
+        next.vat_rule = value === 'club' ? 'CLUB_INCLUDED' : (next.warehouse === 'UK' ? 'UK_STANDARD' : 'EU_EXEMPT')
       }
       return next
     })
@@ -423,8 +426,10 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
     { key: 'discount_shoes', label: 'Shoes' },
   ]
   const vatOptions = [
-    { value: 'UK_STANDARD', label: 'UK (20%)' }, { value: 'EU_EXEMPT', label: 'EU Exempt (0%)' },
+    { value: 'UK_STANDARD', label: 'UK Standard (20%)' },
+    { value: 'EU_EXEMPT', label: 'EU Exempt (0%)' },
     { value: 'ES_STANDARD', label: 'Spain (21%)' },
+    { value: 'CLUB_INCLUDED', label: 'Club — VAT included in price' },
   ]
 
   return (
@@ -507,14 +512,15 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
   wholesaleOrders: WholesaleOrder[]; athleteOrders: AthleteOrder[]
   customers: Customer[]; athletes: Athlete[]
 }) {
-  const [activeTab, setActiveTab] = useState<'wholesale' | 'athlete_orders' | 'customers' | 'athletes' | 'add'>('wholesale')
+  const [activeTab, setActiveTab] = useState<'wholesale' | 'athlete_orders' | 'customers' | 'clubs' | 'athletes' | 'add'>('wholesale')
   const [addTab, setAddTab] = useState<'athlete' | 'customer'>('athlete')
   const [refreshKey, setRefreshKey] = useState(0)
 
   const tabs = [
     { key: 'wholesale', label: 'Wholesale', count: wholesaleOrders.length },
     { key: 'athlete_orders', label: 'Athlete orders', count: athleteOrders.length },
-    { key: 'customers', label: 'Customers', count: customers.length },
+    { key: 'customers', label: 'Customers', count: customers.filter(c => c.customer_type !== 'club').length },
+    { key: 'clubs', label: 'Clubs', count: customers.filter(c => c.customer_type === 'club').length },
     { key: 'athletes', label: 'Athletes', count: athletes.length },
     { key: 'add', label: '+ Add new', count: null },
   ] as const
@@ -564,9 +570,21 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
 
       {activeTab === 'customers' && (
         <div className="space-y-3">
-          {customers.length === 0
-            ? <p className="text-sm text-neutral-400 text-center py-12">No customers yet.</p>
-            : customers.map((c) => <CustomerRow key={c.customer_id} customer={c} onSaved={() => setRefreshKey(k => k + 1)} />)}
+          {customers.filter(c => c.customer_type !== 'club').length === 0
+            ? <p className="text-sm text-neutral-400 text-center py-12">No wholesale customers yet.</p>
+            : customers.filter(c => c.customer_type !== 'club').map((c) => (
+              <CustomerRow key={c.customer_id} customer={c} onSaved={() => setRefreshKey(k => k + 1)} />
+            ))}
+        </div>
+      )}
+
+      {activeTab === 'clubs' && (
+        <div className="space-y-3">
+          {customers.filter(c => c.customer_type === 'club').length === 0
+            ? <p className="text-sm text-neutral-400 text-center py-12">No clubs yet.</p>
+            : customers.filter(c => c.customer_type === 'club').map((c) => (
+              <CustomerRow key={c.customer_id} customer={c} onSaved={() => setRefreshKey(k => k + 1)} />
+            ))}
         </div>
       )}
 
