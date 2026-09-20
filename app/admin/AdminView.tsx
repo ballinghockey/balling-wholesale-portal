@@ -53,7 +53,7 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
   const [currentLines, setCurrentLines] = useState<OrderLine[]>(lines)
   const ref = orderId.slice(0, 8).toUpperCase()
   const symbol = currency === 'GBP' ? '£' : '€'
-  const totalUnits = lines.reduce((sum, l) => sum + l.qty, 0)
+  const totalUnits = currentLines.reduce((sum, l) => sum + l.qty, 0)
 
   async function updateStatus(newStatus: string) {
     setSaving(true)
@@ -108,7 +108,7 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {lines.map((line, i) => (
+              {currentLines.map((line, i) => (
                 <tr key={i}>
                   <td className="py-2 pr-4">
                     <p className="text-sm font-medium text-neutral-900">{line.product_name}</p>
