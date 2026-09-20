@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
 
@@ -193,6 +194,7 @@ function buildBallingEmailHtml(params: {
     <tr><td style="padding:12px 16px;font-size:13px"><strong>${isAthlete ? 'Athlete' : 'Customer'}:</strong> ${customerName}</td></tr>
     <tr><td style="padding:0 16px 12px;font-size:13px"><strong>Email:</strong> ${customerEmail}</td></tr>
     <tr><td style="padding:0 16px 12px;font-size:13px"><strong>Currency:</strong> ${currency}</td></tr>
+    ${creditApplied && creditApplied > 0 ? `<tr><td style="padding:0 16px 12px;font-size:13px;color:#059669"><strong>Loyalty credit applied:</strong> -${symbol}${Number(creditApplied).toFixed(2)}</td></tr>` : ''}
   </table>
   <table style="width:100%;border-collapse:collapse">
     <thead>
@@ -451,9 +453,13 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('draft_cart').delete().eq('customer_id', customerId)
 
-  // Deduct loyalty credit if applied
+  // Deduct loyalty credit if applied — use service role to bypass RLS
   if (!isAthlete && creditApplied && creditApplied > 0) {
-    const { data: loyalty } = await supabase
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: loyalty } = await serviceClient
       .from('customer_loyalty')
       .select('credit_balance')
       .eq('customer_id', customerId)
@@ -461,7 +467,7 @@ export async function POST(req: NextRequest) {
 
     if (loyalty) {
       const newBalance = Math.max(0, (loyalty.credit_balance ?? 0) - creditApplied)
-      await supabase
+      await serviceClient
         .from('customer_loyalty')
         .update({ credit_balance: newBalance, updated_at: new Date().toISOString() })
         .eq('customer_id', customerId)
@@ -470,7 +476,10 @@ export async function POST(req: NextRequest) {
 
   const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
   const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false })
-  const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}`
+  const creditNote = creditApplied && creditApplied > 0
+    ? ` (${symbol}${Number(creditApplied).toFixed(2)} loyalty credit applied)`
+    : ''
+  const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}${creditNote}`
 
   await sendEmail({ to: customer?.email_login ?? '', subject: `Order confirmed – ${orderDate} · Ref ${orderId.slice(0,8).toUpperCase()}`, html: customerEmailHtml })
   await sendEmail({ to: 'admin@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
