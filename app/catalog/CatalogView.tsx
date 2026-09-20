@@ -35,6 +35,7 @@ export default function CatalogView({
   const [openSubcategories, setOpenSubcategories] = useState<Set<string>>(new Set())
   const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set())
   const [showAllCategory, setShowAllCategory] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const visibleGroups = useMemo(
@@ -170,6 +171,54 @@ export default function CatalogView({
     )
   }
 
+  function renderProductGroupGrid(group: ProductGroupWithVariants) {
+    return (
+      <div key={group.productGroup} className="bg-white rounded-xl border border-neutral-200 p-3">
+        <div className="flex flex-col gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={group.imageUrl}
+            alt={group.productName}
+            onClick={() => setZoomedImage({ url: group.imageUrl, alt: group.productName })}
+            className="w-full aspect-square rounded-lg object-contain bg-neutral-100 p-2 cursor-zoom-in hover:opacity-90 transition-opacity"
+          />
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+              <h3 className="font-medium text-neutral-900 text-xs leading-tight">{group.productName}</h3>
+              {group.onSale && (
+                <span className="text-xs font-semibold px-1 py-0.5 rounded bg-red-100 text-red-600 flex-shrink-0">Sale</span>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              {group.variants.map((v) => (
+                <div key={v.sku} className="flex items-center gap-1.5 text-xs">
+                  <span className="w-10 font-medium text-neutral-700 flex-shrink-0 text-xs">{v.size}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${STOCK_STYLES[v.stockStatus]}`}>
+                    {v.stockStatus === 'Out of Stock' ? 'OOS' : v.stockStatus === 'Low Stock' ? 'Low' : 'Avail'}
+                  </span>
+                  <span className="flex-1 font-semibold text-neutral-900 text-xs text-right">{v.displayPrice}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    disabled={v.stockStatus === 'Out of Stock'}
+                    value={cart[v.sku] ?? 0}
+                    onChange={(e) => {
+                      const qty = Math.max(0, parseInt(e.target.value || '0', 10))
+                      updateQty(v.sku, qty)
+                    }}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    className="w-12 rounded border border-neutral-300 px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 flex-shrink-0"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   function renderBucket(subcat: string, items: ProductGroupWithVariants[]) {
     const isOpen = openSubcategories.has(subcat)
     const isExpanded = expandedSubcategories.has(subcat)
@@ -191,7 +240,7 @@ export default function CatalogView({
 
         {isOpen && (
           <div className="p-3 space-y-3 bg-neutral-50/50">
-            {visibleItems.map(renderProductGroup)}
+            {viewMode === 'grid' ? <div className="grid grid-cols-2 gap-2">{visibleItems.map(renderProductGroupGrid)}</div> : visibleItems.map(renderProductGroup)}
             {hasMore && (
               <button
                 onClick={() => toggleExpanded(subcat)}
@@ -213,17 +262,35 @@ export default function CatalogView({
           <h1 className="text-xl font-semibold text-neutral-900">Catalog</h1>
           <p className="text-sm text-neutral-500">Choose quantities by size</p>
         </div>
-        <a
-          href="/cart"
-          className="relative inline-flex items-center gap-2 rounded-lg bg-neutral-900 text-white px-4 py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
-        >
-          My order
-          {cartCount > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-white text-neutral-900 text-xs font-semibold w-5 h-5">
-              {cartCount}
-            </span>
-          )}
-        </a>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 text-xs transition-colors ${viewMode === 'list' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-400 hover:text-neutral-700'}`}
+              title="List view"
+            >
+              ☰
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 text-xs transition-colors ${viewMode === 'grid' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-400 hover:text-neutral-700'}`}
+              title="Grid view"
+            >
+              ⊞
+            </button>
+          </div>
+          <a
+            href="/cart"
+            className="relative inline-flex items-center gap-2 rounded-lg bg-neutral-900 text-white px-4 py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
+          >
+            My order
+            {cartCount > 0 && (
+              <span className="inline-flex items-center justify-center rounded-full bg-white text-neutral-900 text-xs font-semibold w-5 h-5">
+                {cartCount}
+              </span>
+            )}
+          </a>
+        </div>
       </header>
 
       <nav className="flex gap-1 mb-2 border-b border-neutral-200 overflow-x-auto">
@@ -256,7 +323,7 @@ export default function CatalogView({
         {/* "View all" mode: flat list of all models ignoring subcategories */}
         {showAllCategory ? (
           <>
-            {visibleGroups.map(renderProductGroup)}
+            {viewMode === 'grid' ? <div className="grid grid-cols-2 gap-2">{visibleGroups.map(renderProductGroupGrid)}</div> : visibleGroups.map(renderProductGroup)}
             <button
               onClick={() => setShowAllCategory(false)}
               className="w-full py-2.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors border border-neutral-200 rounded-xl bg-white"
@@ -266,7 +333,7 @@ export default function CatalogView({
           </>
         ) : (
           <>
-            {subcategoryBuckets.get('')?.map(renderProductGroup)}
+            {viewMode === 'grid' ? <div className="grid grid-cols-2 gap-2">{(subcategoryBuckets.get('') ?? []).map(renderProductGroupGrid)}</div> : subcategoryBuckets.get('')?.map(renderProductGroup)}
 
             {hasSubcategories &&
               Array.from(subcategoryBuckets.entries())
