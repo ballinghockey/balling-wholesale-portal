@@ -42,7 +42,7 @@ export default function LoyaltyBar({
       </div>
       <div className="w-full bg-neutral-100 rounded-full h-2">
         <div
-          className="bg-neutral-900 h-2 rounded-full transition-all duration-500"
+          className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
           style={{ width: `${progressPct}%` }}
         />
       </div>
