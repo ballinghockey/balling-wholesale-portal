@@ -5,7 +5,7 @@ import OrderEditor from './OrderEditor'
 
 type OrderLine = {
   id: string; sku: string; product_name: string; size: string; qty: number
-  final_unit_price?: number; line_total?: number
+  final_unit_price: number; line_total: number
 }
 type WholesaleOrder = {
   order_id: string; order_date: string; currency: string; net_total: number
