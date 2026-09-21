@@ -12,6 +12,15 @@ export default async function OrdersPage() {
   const userType = await getUserType(authData.user.id)
   if (!userType) redirect('/login')
 
+  // Check if admin — redirect to admin panel
+  const { data: adminCheck } = await supabase
+    .from('customers')
+    .select('is_admin')
+    .eq('auth_user_id', authData.user.id)
+    .maybeSingle()
+
+  if (adminCheck?.is_admin) redirect('/admin')
+
   // ATHLETE
   if (userType === 'athlete') {
     const athlete = await getAthleteForUser(authData.user.id)
