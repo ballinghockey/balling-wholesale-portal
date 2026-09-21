@@ -38,10 +38,12 @@ export default function OrdersView({
   orders,
   currency,
   customerName,
+  isAthlete = false,
 }: {
   orders: Order[]
   currency: 'GBP' | 'EUR'
   customerName: string
+  isAthlete?: boolean
 }) {
   const router = useRouter()
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
@@ -148,23 +150,29 @@ export default function OrdersView({
                             <td className="py-2.5 pr-4">
                               <p className="text-sm font-medium text-neutral-900">{line.product_name}</p>
                               <p className="text-xs text-neutral-400">{line.size} · SKU: {line.sku}</p>
-                              {line.customer_discount_pct > 0 && (
+                              {!isAthlete && line.customer_discount_pct > 0 && (
                                 <p className="text-xs text-emerald-600">
                                   -{line.customer_discount_pct}% applied
                                 </p>
                               )}
                             </td>
                             <td className="py-2.5 text-center text-sm text-neutral-700">{line.qty}</td>
-                            <td className="py-2.5 text-right text-sm text-neutral-700">
-                              {symbol}{line.final_unit_price.toFixed(2)}
-                            </td>
-                            <td className="py-2.5 text-right text-sm font-medium text-neutral-900">
-                              {symbol}{line.line_total.toFixed(2)}
-                            </td>
+                            {!isAthlete && (
+                              <td className="py-2.5 text-right text-sm text-neutral-700">
+                                {symbol}{line.final_unit_price.toFixed(2)}
+                              </td>
+                            )}
+                            {!isAthlete && (
+                              <td className="py-2.5 text-right text-sm font-medium text-neutral-900">
+                                {symbol}{line.line_total.toFixed(2)}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
+                        {!isAthlete && (
+                        {!isAthlete && (
                         <tr>
                           <td colSpan={3} className="pt-3 text-right text-sm font-semibold text-neutral-900">
                             Subtotal
@@ -173,6 +181,8 @@ export default function OrdersView({
                             {symbol}{order.net_total.toFixed(2)}
                           </td>
                         </tr>
+                      )}
+                      )}
                         {order.vat_total > 0 && (
                           <tr>
                             <td colSpan={3} className="pt-1 text-right text-xs text-neutral-400">
