@@ -159,12 +159,11 @@ export default async function CartPage() {
     }
   })
 
-  // Fetch loyalty balance
-  const { data: loyaltyData } = await supabase
-    .from('customer_loyalty')
-    .select('credit_balance')
-    .eq('customer_id', customer.customer_id)
-    .maybeSingle()
+  // Fetch loyalty balance and rule
+  const [{ data: loyaltyData }, { data: loyaltyRule }] = await Promise.all([
+    supabase.from('customer_loyalty').select('credit_balance, total_spent').eq('customer_id', customer.customer_id).maybeSingle(),
+    supabase.from('loyalty_rules').select('spend_threshold, credit_amount, active').eq('customer_id', customer.customer_id).maybeSingle(),
+  ])
 
   return (
     <CartView
@@ -174,6 +173,8 @@ export default async function CartPage() {
       customerName={customer.customer_name}
       vatRule={customer.vat_rule}
       loyaltyBalance={loyaltyData?.credit_balance ?? 0}
+      loyaltyTotalSpent={loyaltyData?.total_spent ?? 0}
+      loyaltyRule={loyaltyRule ?? null}
     />
   )
 }
