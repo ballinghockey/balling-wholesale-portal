@@ -105,28 +105,73 @@ export async function POST(req: NextRequest) {
     }, { onConflict: 'customer_id' })
   }
 
-  // Invite user
-  const { data: inviteData, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
+  // Generate invite link and send via Resend
+  const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
+    type: 'invite',
     email,
-    {
+    options: {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://balling-wholesale-portal.vercel.app'}/set-password`,
       data: { customer_id, type: 'customer' },
     }
-  )
+  })
 
-  if (inviteError) {
-    console.error('[invite] Error sending invite:', inviteError.message)
+  if (linkError || !linkData) {
+    console.error('[invite] Error generating link:', linkError?.message)
     return NextResponse.json({
       ok: true,
       customer_id,
-      warning: `Customer created but invite email failed: ${inviteError.message}`
+      warning: `Customer created but invite link failed: ${linkError?.message}`
     })
   }
 
-  if (inviteData?.user?.id) {
+  // Link is in properties.action_link
+  const inviteUrl = (linkData as any).properties?.action_link ?? linkData.user?.action_link
+
+  if (inviteUrl && process.env.RESEND_API_KEY) {
+    const symbol = currency === 'GBP' ? '£' : 'EUR'
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+    <div style="background:#000;padding:20px 32px">
+      <img src="https://balling-wholesale-portal.vercel.app/logo-full.png" alt="Balling Hockey" style="height:28px;width:auto;display:block;filter:invert(1)" />
+    </div>
+    <div style="padding:32px">
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111">You're invited to the Balling Hockey Wholesale Portal</h1>
+      <p style="margin:0 0 24px;color:#555;font-size:14px">Hi ${customer_name},</p>
+      <p style="margin:0 0 24px;color:#555;font-size:14px">Your wholesale account has been created. Click the button below to set your password and access the portal.</p>
+      <a href="${inviteUrl}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:24px">Set password & sign in →</a>
+      <p style="margin:0 0 8px;color:#999;font-size:12px">Or copy this link: <a href="${inviteUrl}" style="color:#555">${inviteUrl}</a></p>
+      <div style="border-top:1px solid #eee;padding-top:20px;margin-top:24px;font-size:12px;color:#aaa;text-align:center">
+        Balling Hockey · Wholesale Portal<br>
+        Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@ballinghockey.com</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM_EMAIL ?? 'noreply@ballinghockey.com',
+        to: [email],
+        subject: 'You're invited to the Balling Hockey Wholesale Portal',
+        html,
+      }),
+    })
+  }
+
+  // Link auth user
+  if (linkData.user?.id) {
     await serviceClient
       .from('customers')
-      .update({ auth_user_id: inviteData.user.id })
+      .update({ auth_user_id: linkData.user.id })
       .eq('customer_id', customer_id)
   }
 
