@@ -181,7 +181,6 @@ export default function OrdersView({
                           </td>
                         </tr>
                       )}
-                      )}
                         {order.vat_total > 0 && (
                           <tr>
                             <td colSpan={3} className="pt-1 text-right text-xs text-neutral-400">
