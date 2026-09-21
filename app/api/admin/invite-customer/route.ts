@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     warehouse, currency, vat_rule, shipping_rule, customer_type,
     discount_sticks, discount_bags, discount_accessories,
     discount_apparel, discount_shoes,
+    loyalty_active, loyalty_threshold, loyalty_credit,
   } = await req.json()
 
   if (!customer_name || !email || !warehouse || !currency || !vat_rule) {
@@ -87,6 +88,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: discountError.message }, { status: 500 })
   }
 
+  // Setup loyalty if enabled
+  if (loyalty_active === 'true' && loyalty_threshold && loyalty_credit) {
+    await serviceClient.from('loyalty_rules').upsert({
+      customer_id,
+      spend_threshold: parseFloat(loyalty_threshold),
+      credit_amount: parseFloat(loyalty_credit),
+      active: true,
+    }, { onConflict: 'customer_id' })
+
+    await serviceClient.from('customer_loyalty').upsert({
+      customer_id,
+      credit_balance: 0,
+      total_spent: 0,
+      currency: currency || 'GBP',
+    }, { onConflict: 'customer_id' })
+  }
+
   // Invite user
   const { data: inviteData, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
     email,
@@ -110,23 +128,6 @@ export async function POST(req: NextRequest) {
       .from('customers')
       .update({ auth_user_id: inviteData.user.id })
       .eq('customer_id', customer_id)
-  }
-
-  // Setup loyalty if enabled
-  if (loyalty_active && loyalty_threshold && loyalty_credit) {
-    await serviceClient.from('loyalty_rules').upsert({
-      customer_id,
-      spend_threshold: parseFloat(loyalty_threshold),
-      credit_amount: parseFloat(loyalty_credit),
-      active: true,
-    }, { onConflict: 'customer_id' })
-
-    await serviceClient.from('customer_loyalty').upsert({
-      customer_id,
-      credit_balance: 0,
-      total_spent: 0,
-      currency: currency || 'GBP',
-    }, { onConflict: 'customer_id' })
   }
 
   return NextResponse.json({ ok: true, customer_id })
