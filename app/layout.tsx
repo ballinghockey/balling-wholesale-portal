@@ -40,7 +40,6 @@ export default async function RootLayout({
               Order history
             </a>
             <span className="text-neutral-200 hidden sm:block">|</span>
-            <span className="text-neutral-200 hidden sm:block">|</span>
             <span className="text-xs text-neutral-400 hidden sm:block tracking-wide uppercase">Wholesale Portal</span>
             <LogoutButton />
           </div>
