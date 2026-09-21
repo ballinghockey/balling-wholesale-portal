@@ -478,7 +478,7 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
     warehouse: 'UK', currency: 'GBP', vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
     customer_type: 'wholesale',
     discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0',
-    loyalty_active: false as boolean, loyalty_threshold: '500', loyalty_credit: '50',
+    loyalty_active: 'false', loyalty_threshold: '500', loyalty_credit: '50',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -515,7 +515,7 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
         vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
         customer_type: 'wholesale',
         discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0',
-        loyalty_active: false as boolean, loyalty_threshold: '500', loyalty_credit: '50' })
+        loyalty_active: 'false', loyalty_threshold: '500', loyalty_credit: '50' })
       onSuccess()
     }
   }
@@ -601,12 +601,12 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="border-t border-neutral-100 pt-3">
         <div className="flex items-center gap-2 mb-3">
           <input type="checkbox" id="loyalty-active-new"
-            checked={form.loyalty_active}
-            onChange={(e) => set('loyalty_active', e.target.checked as any)}
+            checked={form.loyalty_active === 'true'}
+            onChange={(e) => set('loyalty_active', e.target.checked ? 'true' : 'false')}
             className="rounded" />
           <label htmlFor="loyalty-active-new" className="text-xs font-medium text-neutral-700">Enable loyalty rewards</label>
         </div>
-        {form.loyalty_active && (
+        {form.loyalty_active === 'true' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Spend threshold ({form.currency === 'GBP' ? '£' : '€'})</label>
