@@ -98,8 +98,9 @@ export default function AthleteCartView({
     if (!address.postcode.trim()) errors.postcode = 'Required'
     if (!address.country.trim()) errors.country = 'Required'
 
-    // UK postcode format validation
-    if (warehouse === 'UK' && address.postcode) {
+    // UK postcode format validation — only for UK/Ireland
+    const ukCountries = ['United Kingdom', 'Ireland']
+    if (ukCountries.includes(address.country) && address.postcode) {
       const ukPostcode = /^[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}$/i
       if (!ukPostcode.test(address.postcode.trim())) {
         errors.postcode = 'Invalid UK postcode format (e.g. SW1A 1AA)'
