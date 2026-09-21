@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import LoyaltyBar from '../catalog/LoyaltyBar'
 
 type CartItem = {
   sku: string
@@ -33,6 +34,8 @@ export default function CartView({
   customerName,
   vatRule,
   loyaltyBalance = 0,
+  loyaltyTotalSpent = 0,
+  loyaltyRule,
 }: {
   items: CartItem[]
   currency: 'GBP' | 'EUR'
@@ -40,6 +43,8 @@ export default function CartView({
   customerName: string
   vatRule: string
   loyaltyBalance?: number
+  loyaltyTotalSpent?: number
+  loyaltyRule?: { spend_threshold: number; credit_amount: number; active: boolean } | null
 }) {
   const router = useRouter()
   const [items, setItems] = useState<CartItem[]>(initialItems)
@@ -171,6 +176,17 @@ export default function CartView({
         </button>
       </header>
 
+      {/* Loyalty progress bar */}
+      {loyaltyRule?.active && (
+        <LoyaltyBar
+          creditBalance={loyaltyBalance}
+          totalSpent={loyaltyTotalSpent}
+          spendThreshold={loyaltyRule.spend_threshold}
+          creditAmount={loyaltyRule.credit_amount}
+          currency={currency}
+        />
+      )}
+
       {/* Loyalty credit banner */}
       {loyaltyBalance > 0 && (
         <div className={`flex items-center justify-between px-4 py-3 rounded-xl border mb-4 ${
@@ -268,7 +284,9 @@ export default function CartView({
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-4 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-neutral-500">{totalUnits} {totalUnits === 1 ? 'unit' : 'units'}</span>
+            <span className="text-sm text-neutral-500">
+              {totalUnits} {totalUnits === 1 ? 'unit' : 'units'} · {items.length} {items.length === 1 ? 'product' : 'products'}
+            </span>
             <div className="text-right">
               {creditApplied && creditToApply > 0 && (
                 <p className="text-xs text-neutral-400 line-through">{symbol}{subtotal.toFixed(2)}</p>
