@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   const inviteUrl = (linkData as any).properties?.action_link ?? linkData.user?.action_link
 
   if (inviteUrl && process.env.RESEND_API_KEY) {
-    const html = \`<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
@@ -127,12 +127,12 @@ export async function POST(req: NextRequest) {
     </div>
   </div>
 </body>
-</html>\`
+</html>`
 
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': \`Bearer \${process.env.RESEND_API_KEY}\`,
+        'Authorization': `Bearer \${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
