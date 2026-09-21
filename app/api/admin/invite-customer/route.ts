@@ -112,5 +112,22 @@ export async function POST(req: NextRequest) {
       .eq('customer_id', customer_id)
   }
 
+  // Setup loyalty if enabled
+  if (loyalty_active && loyalty_threshold && loyalty_credit) {
+    await serviceClient.from('loyalty_rules').upsert({
+      customer_id,
+      spend_threshold: parseFloat(loyalty_threshold),
+      credit_amount: parseFloat(loyalty_credit),
+      active: true,
+    }, { onConflict: 'customer_id' })
+
+    await serviceClient.from('customer_loyalty').upsert({
+      customer_id,
+      credit_balance: 0,
+      total_spent: 0,
+      currency: currency || 'GBP',
+    }, { onConflict: 'customer_id' })
+  }
+
   return NextResponse.json({ ok: true, customer_id })
 }
