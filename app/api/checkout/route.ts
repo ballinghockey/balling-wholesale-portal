@@ -353,7 +353,7 @@ export async function POST(req: NextRequest) {
     if (currentCredits) {
       const updates: Record<string, number> = {}
       for (const [field, used] of Object.entries(creditDeductions)) {
-        updates[field] = Math.max(0, (currentCredits[field] ?? 0) - used)
+        updates[field] = Math.max(0, Math.max(0, (currentCredits[field] ?? 0)) - used)
       }
 
       await supabase
