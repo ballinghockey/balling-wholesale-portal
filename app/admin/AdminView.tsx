@@ -53,16 +53,29 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
   const [saving, setSaving] = useState(false)
   const [editingOrder, setEditingOrder] = useState(false)
   const [currentLines, setCurrentLines] = useState<OrderLine[]>(lines)
+  const [confirmingStatus, setConfirmingStatus] = useState<string | null>(null)
+  const [shippingModal, setShippingModal] = useState(false)
+  const [shippingInfo, setShippingInfo] = useState({ carrier: '', tracking: '', url: '' })
   const ref = orderId.slice(0, 8).toUpperCase()
   const symbol = currency === 'GBP' ? '£' : '€'
   const totalUnits = currentLines.reduce((sum, l) => sum + l.qty, 0)
 
-  async function updateStatus(newStatus: string) {
+  function handleStatusClick(newStatus: string) {
+    if (newStatus === 'shipped') {
+      setShippingModal(true)
+    } else {
+      setConfirmingStatus(newStatus)
+    }
+  }
+
+  async function updateStatus(newStatus: string, shipping?: { carrier: string; tracking: string; url: string }) {
     setSaving(true)
+    setConfirmingStatus(null)
+    setShippingModal(false)
     try {
       const res = await fetch('/api/admin/update-status', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, status: newStatus }),
+        body: JSON.stringify({ orderId, status: newStatus, shipping }),
       })
       if (res.ok) setCurrentStatus(newStatus)
     } finally { setSaving(false) }
@@ -135,7 +148,7 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-neutral-500">Status:</span>
             {STATUS_OPTIONS.map((s) => (
-              <button key={s} disabled={s === currentStatus || saving} onClick={() => updateStatus(s)}
+              <button key={s} disabled={s === currentStatus || saving} onClick={() => handleStatusClick(s)}
                 className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${s === currentStatus ? `${STATUS_STYLES[s]} cursor-default` : 'border-neutral-200 text-neutral-500 hover:border-neutral-400'}`}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
@@ -162,6 +175,70 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
             setEditingOrder(false)
           }}
         />
+      )}
+
+      {/* Confirm status modal */}
+      {confirmingStatus && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-xl">
+            <h3 className="font-semibold text-neutral-900 mb-2">Change status</h3>
+            <p className="text-sm text-neutral-500 mb-6">
+              Are you sure you want to mark this order as <strong>{confirmingStatus}</strong>?
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmingStatus(null)}
+                className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => updateStatus(confirmingStatus)}
+                className="flex-1 rounded-lg bg-neutral-900 text-white py-2 text-sm font-medium hover:bg-neutral-800 transition-colors">
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping modal */}
+      {shippingModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-xl">
+            <h3 className="font-semibold text-neutral-900 mb-4">Mark as shipped</h3>
+            <div className="space-y-3 mb-6">
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">Carrier (e.g. DHL, FedEx)</label>
+                <input type="text" value={shippingInfo.carrier}
+                  onChange={(e) => setShippingInfo(p => ({ ...p, carrier: e.target.value }))}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="DHL" />
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">Tracking number</label>
+                <input type="text" value={shippingInfo.tracking}
+                  onChange={(e) => setShippingInfo(p => ({ ...p, tracking: e.target.value }))}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="1Z999AA10123456784" />
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">Tracking URL (optional)</label>
+                <input type="url" value={shippingInfo.url}
+                  onChange={(e) => setShippingInfo(p => ({ ...p, url: e.target.value }))}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="https://track.dhl.com/..." />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShippingModal(false)}
+                className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => updateStatus('shipped', shippingInfo)}
+                className="flex-1 rounded-lg bg-neutral-900 text-white py-2 text-sm font-medium hover:bg-neutral-800 transition-colors">
+                Mark as shipped
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
