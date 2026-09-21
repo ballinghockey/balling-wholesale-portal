@@ -172,7 +172,6 @@ export default function OrdersView({
                       </tbody>
                       <tfoot>
                         {!isAthlete && (
-                        {!isAthlete && (
                         <tr>
                           <td colSpan={3} className="pt-3 text-right text-sm font-semibold text-neutral-900">
                             Subtotal
