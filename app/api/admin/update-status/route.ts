@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const { orderId, status } = await req.json()
+  const { orderId, status, shipping } = await req.json()
   const validStatuses = ['submitted', 'confirmed', 'shipped', 'cancelled']
 
   if (!orderId || !validStatuses.includes(status)) {
@@ -121,7 +121,9 @@ export async function POST(req: NextRequest) {
     },
     shipped: {
       subject: `Order shipped · Ref ${orderId.slice(0,8).toUpperCase()}`,
-      message: 'Your order is on its way! You will receive it shortly.'
+      message: shipping?.tracking
+        ? `Your order is on its way!${shipping.carrier ? ` Shipped via ${shipping.carrier}.` : ''} Tracking number: <strong>${shipping.tracking}</strong>${shipping.url ? ` — <a href="${shipping.url}" style="color:#000">Track your order</a>` : ''}.`
+        : 'Your order is on its way! You will receive it shortly.',
     },
     cancelled: {
       subject: `Order cancelled · Ref ${orderId.slice(0,8).toUpperCase()}`,
