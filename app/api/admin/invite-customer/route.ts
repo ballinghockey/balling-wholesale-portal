@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL ?? 'noreply@ballinghockey.com',
         to: [email],
-        subject: 'You're invited to the Balling Hockey Wholesale Portal',
+        subject: "You're invited to the Balling Hockey Wholesale Portal",
         html,
       }),
     })
