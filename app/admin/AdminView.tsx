@@ -596,6 +596,31 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
           ))}
         </div>
       </div>
+      <div className="border-t border-neutral-100 pt-3">
+        <div className="flex items-center gap-2 mb-3">
+          <input type="checkbox" id="loyalty-active-new"
+            checked={form.loyalty_active}
+            onChange={(e) => set('loyalty_active', e.target.checked as any)}
+            className="rounded" />
+          <label htmlFor="loyalty-active-new" className="text-xs font-medium text-neutral-700">Enable loyalty rewards</label>
+        </div>
+        {form.loyalty_active && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Spend threshold ({form.currency === 'GBP' ? '£' : '€'})</label>
+              <input type="number" min={1} value={form.loyalty_threshold}
+                onChange={(e) => set('loyalty_threshold', e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+            </div>
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Credit amount ({form.currency === 'GBP' ? '£' : '€'})</label>
+              <input type="number" min={1} value={form.loyalty_credit}
+                onChange={(e) => set('loyalty_credit', e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+            </div>
+          </div>
+        )}
+      </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {success && <p className="text-xs text-emerald-600">{success}</p>}
       <button type="submit" disabled={loading}
