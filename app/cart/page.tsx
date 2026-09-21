@@ -68,9 +68,11 @@ export default async function CartPage() {
   const customer = await getCustomerForUser(authData.user.id)
   if (!customer) redirect('/login')
 
+  const isClub = customer.customer_type === 'club'
+
   const { data: cartRows } = await supabase
     .from('draft_cart')
-    .select(`sku, qty, products (product_name, product_group, category, size, image_url, base_price_gbp, base_price_eur)`)
+    .select(`sku, qty, products (product_name, product_group, category, size, image_url, base_price_gbp, base_price_eur, rrp_gbp, rrp_eur)`)
     .eq('customer_id', customer.customer_id)
     .order('sku')
 
@@ -113,14 +115,29 @@ export default async function CartPage() {
 
   const items = (cartRows ?? []).map((row: any) => {
     const p = row.products
-    const listPrice = customer.currency === 'GBP' ? p.base_price_gbp : p.base_price_eur
     const discountField = CATEGORY_DISCOUNT_MAP[p.category] ?? 'accessories_pct'
     const customerDiscountPct = discounts?.[discountField] ?? 0
-    const activePromo = (promotions ?? []).find((promo: any) =>
-      promo.category === p.category && promo.start_date <= today && promo.end_date >= today
-    )
-    const promoDiscountPct = activePromo?.extra_discount_pct ?? 0
-    const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
+
+    let listPrice: number
+    let finalUnitPrice: number
+    let promoDiscountPct = 0
+
+    if (isClub) {
+      // Club: use RRP as base, apply club discount
+      listPrice = customer.currency === 'GBP'
+        ? (p.rrp_gbp ?? p.base_price_gbp * 2)
+        : (p.rrp_eur ?? p.base_price_eur * 2)
+      finalUnitPrice = listPrice * (1 - customerDiscountPct / 100)
+    } else {
+      // Wholesale: use base price, apply discount + promo
+      listPrice = customer.currency === 'GBP' ? p.base_price_gbp : p.base_price_eur
+      const activePromo = (promotions ?? []).find((promo: any) =>
+        promo.category === p.category && promo.start_date <= today && promo.end_date >= today
+      )
+      promoDiscountPct = activePromo?.extra_discount_pct ?? 0
+      finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
+    }
+
     const lineTotal = finalUnitPrice * row.qty
     const imageUrl = groupImageMap.get(p.product_group) ?? p.image_url ?? ''
 
