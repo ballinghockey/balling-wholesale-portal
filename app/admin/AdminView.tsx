@@ -478,6 +478,7 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
     warehouse: 'UK', currency: 'GBP', vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
     customer_type: 'wholesale',
     discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0',
+    loyalty_active: false as boolean, loyalty_threshold: '500', loyalty_credit: '50',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -513,7 +514,8 @@ function AddCustomerForm({ onSuccess }: { onSuccess: () => void }) {
       setForm({ customer_name: '', contact_name: '', email: '', country: '', warehouse: 'UK', currency: 'GBP',
         vat_rule: 'UK_STANDARD', shipping_rule: 'UK_STANDARD',
         customer_type: 'wholesale',
-        discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0' })
+        discount_sticks: '0', discount_bags: '0', discount_accessories: '0', discount_apparel: '0', discount_shoes: '0',
+        loyalty_active: false as boolean, loyalty_threshold: '500', loyalty_credit: '50' })
       onSuccess()
     }
   }
