@@ -42,6 +42,8 @@ export default function OrderEditor({
   const [searching, setSearching] = useState(false)
   const [addQty, setAddQty] = useState<Record<string, number>>({})
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [showNotifyModal, setShowNotifyModal] = useState(false)
+  const [changes, setChanges] = useState<string[]>([])
 
   const search = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return }
@@ -73,15 +75,18 @@ export default function OrderEditor({
       }),
     })
     if (res.ok) {
+      const oldQty = line.qty
       setLines(prev => prev.map(l => l.id === line.id
         ? { ...l, qty: newQty, line_total: newQty * l.final_unit_price }
         : l
       ))
+      setChanges(prev => [...prev, `Changed ${line.product_name} (${line.size}) qty from ${oldQty} to ${newQty}`])
     }
     setSaving(null)
   }
 
   async function deleteLine(lineId: string) {
+    const lineToDelete = lines.find(l => l.id === lineId)
     setSaving(lineId)
     const res = await fetch('/api/admin/edit-order', {
       method: 'POST',
@@ -90,6 +95,9 @@ export default function OrderEditor({
     })
     if (res.ok) {
       setLines(prev => prev.filter(l => l.id !== lineId))
+      if (lineToDelete) {
+        setChanges(prev => [...prev, `Removed ${lineToDelete.product_name} (${lineToDelete.size}) × ${lineToDelete.qty}`])
+      }
     }
     setSaving(null)
   }
@@ -122,6 +130,7 @@ export default function OrderEditor({
         final_unit_price: unitPrice,
         line_total: qty * unitPrice,
       }])
+      setChanges(prev => [...prev, `Added ${product.product_name} (${product.size}) × ${qty}`])
       setSearchQuery('')
       setSearchResults([])
       setAddQty({})
@@ -230,7 +239,13 @@ export default function OrderEditor({
             Cancel
           </button>
           <button
-            onClick={() => { onSaved(lines); onClose() }}
+            onClick={() => {
+              if (changes.length > 0) {
+                setShowNotifyModal(true)
+              } else {
+                onSaved(lines); onClose()
+              }
+            }}
             className="flex-1 rounded-lg bg-neutral-900 text-white py-2.5 text-sm font-medium hover:bg-neutral-800 transition-colors"
           >
             Done
@@ -238,5 +253,43 @@ export default function OrderEditor({
         </div>
       </div>
     </div>
+
+      {showNotifyModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-xl">
+            <h3 className="font-semibold text-neutral-900 mb-2">Notify customer?</h3>
+            <p className="text-sm text-neutral-500 mb-3">The following changes were made:</p>
+            <ul className="mb-4 space-y-1">
+              {changes.map((c, i) => (
+                <li key={i} className="text-xs text-neutral-700 bg-neutral-50 rounded px-2 py-1">{c}</li>
+              ))}
+            </ul>
+            <p className="text-sm text-neutral-500 mb-6">Send an email to the customer with these changes and the updated order?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowNotifyModal(false); onSaved(lines); onClose() }}
+                className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors"
+              >
+                Skip notification
+              </button>
+              <button
+                onClick={async () => {
+                  await fetch('/api/admin/edit-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'notify_customer', orderId, changes }),
+                  })
+                  setShowNotifyModal(false)
+                  onSaved(lines)
+                  onClose()
+                }}
+                className="flex-1 rounded-lg bg-neutral-900 text-white py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
+              >
+                Send notification
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   )
 }
