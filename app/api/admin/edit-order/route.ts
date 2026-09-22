@@ -120,11 +120,30 @@ export async function POST(req: NextRequest) {
     .eq('order_id', orderId)
     .single()
 
+  // Recalculate VAT based on the order's vat_rule
+  const VAT_RATES: Record<string, number> = {
+    UK_STANDARD: 0.20,
+    ES_STANDARD: 0.21,
+    EU_EXEMPT: 0,
+    CLUB_INCLUDED: 0,
+  }
+
+  const { data: orderForVat } = await serviceClient
+    .from('order_requests')
+    .select('vat_rule')
+    .eq('order_id', orderId)
+    .single()
+
+  const vatRate = VAT_RATES[orderForVat?.vat_rule ?? 'EU_EXEMPT'] ?? 0
+  const vatTotal = Math.round(netTotal * vatRate * 100) / 100
+  const grandTotal = Math.round((netTotal + vatTotal) * 100) / 100
+
   await serviceClient
     .from('order_requests')
     .update({
       net_total: Math.round(netTotal * 100) / 100,
-      grand_total: Math.round(netTotal * 100) / 100,
+      vat_total: vatTotal,
+      grand_total: grandTotal,
     })
     .eq('order_id', orderId)
 
