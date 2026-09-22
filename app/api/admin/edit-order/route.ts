@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
               if (credits) {
                 await serviceClient
                   .from('athlete_credits')
-                  .update({ [creditField]: (credits[creditField] ?? 0) + lineData.qty })
+                  .update({ [creditField]: ((credits as any)[creditField] ?? 0) + lineData.qty })
                   .eq('athlete_id', athlete.athlete_id)
               }
             }
