@@ -36,11 +36,66 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'delete_line') {
+    // Get the line before deleting to check if it belongs to an athlete order
+    const { data: lineData } = await serviceClient
+      .from('order_lines')
+      .select('order_id, sku, qty')
+      .eq('id', lineId)
+      .single()
+
     const { error } = await serviceClient
       .from('order_lines')
       .delete()
       .eq('id', lineId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // If athlete order, return credits
+    if (lineData) {
+      const { data: order } = await serviceClient
+        .from('order_requests')
+        .select('customer_id')
+        .eq('order_id', lineData.order_id)
+        .single()
+
+      if (order) {
+        const { data: athlete } = await serviceClient
+          .from('athletes')
+          .select('athlete_id')
+          .eq('athlete_id', order.customer_id)
+          .maybeSingle()
+
+        if (athlete) {
+          // Get product category to know which credit to return
+          const { data: product } = await serviceClient
+            .from('products')
+            .select('category')
+            .eq('sku', lineData.sku)
+            .maybeSingle()
+
+          if (product) {
+            const CREDIT_MAP: Record<string, string> = {
+              Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
+              Apparel: 'accessories', Shoes: 'shoes', Padel: 'padel',
+            }
+            const creditField = CREDIT_MAP[product.category]
+            if (creditField) {
+              const { data: credits } = await serviceClient
+                .from('athlete_credits')
+                .select(creditField)
+                .eq('athlete_id', athlete.athlete_id)
+                .single()
+
+              if (credits) {
+                await serviceClient
+                  .from('athlete_credits')
+                  .update({ [creditField]: (credits[creditField] ?? 0) + lineData.qty })
+                  .eq('athlete_id', athlete.athlete_id)
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   if (action === 'add_line') {
