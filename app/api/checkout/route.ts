@@ -375,7 +375,7 @@ export async function POST(req: NextRequest) {
 
     const ballingSubject = `New athlete request from ${customerName} · Ref ${orderId.slice(0,8).toUpperCase()}`
 
-    await sendEmail({ to: athlete?.email_login ?? '', subject: `Equipment request confirmed · Ref ${orderId.slice(0,8).toUpperCase()}`, html: athleteEmailHtml })
+    await sendEmail({ to: athlete?.email_login ?? '', subject: `Equipment request received · Ref ${orderId.slice(0,8).toUpperCase()}`, html: athleteEmailHtml })
     await sendEmail({ to: 'admin@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
     await sendEmail({ to: 'secure@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
 
@@ -488,7 +488,7 @@ export async function POST(req: NextRequest) {
     : ''
   const ballingSubject = `New order from ${customerName} · ${currency} ${netTotal.toFixed(2)}${creditNote}`
 
-  await sendEmail({ to: customer?.email_login ?? '', subject: `Order confirmed – ${orderDate} · Ref ${orderId.slice(0,8).toUpperCase()}`, html: customerEmailHtml })
+  await sendEmail({ to: customer?.email_login ?? '', subject: `Order received · Ref ${orderId.slice(0,8).toUpperCase()}`, html: customerEmailHtml })
   await sendEmail({ to: 'admin@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
   await sendEmail({ to: 'secure@ballinghockey.com', subject: ballingSubject, html: ballingEmailHtml })
 
