@@ -205,12 +205,6 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
 
   const netTotal = (allLines ?? []).reduce((sum, l) => sum + (l.line_total ?? 0), 0)
 
-  const { data: orderData } = await serviceClient
-    .from('order_requests')
-    .select('customer_id, currency, status')
-    .eq('order_id', orderId)
-    .single()
-
   // Recalculate VAT based on the order's vat_rule
   const VAT_RATES: Record<string, number> = {
     UK_STANDARD: 0.20,
