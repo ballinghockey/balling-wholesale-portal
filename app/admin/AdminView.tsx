@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import OrderEditor from './OrderEditor'
 
+type ProductPromotion = {
+  id: string; product_group: string; product_name: string
+  discount_pct: number; start_date: string; end_date: string; active: boolean
+}
+
 type OrderLine = {
   id: string; sku: string; product_name: string; size: string; qty: number
   final_unit_price: number; line_total: number
