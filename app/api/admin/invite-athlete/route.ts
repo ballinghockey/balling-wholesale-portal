@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     type: 'invite',
     email,
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://balling-wholesale-portal.vercel.app'}/set-password`,
+      redirectTo: `${process.env.APP_URL ?? 'https://portal.ballinghockey.com'}/set-password`,
       data: { athlete_id, type: 'athlete' },
     }
   })
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       '<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">',
       '<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">',
       '<div style="background:#000;padding:20px 32px">',
-      '<span style="color:#fff;font-size:20px;font-weight:900;letter-spacing:2px">BALLING</span>',
+      '<img src="https://balling-wholesale-portal.vercel.app/logo-full.png" alt="Balling Hockey" style="height:28px;width:auto;display:block;filter:invert(1)" />',
       '</div>',
       '<div style="padding:32px">',
       '<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111">You\'re invited to the Balling Hockey Athlete Portal</h1>',
