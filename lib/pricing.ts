@@ -91,7 +91,8 @@ export function calculatePrice(
   customer: Customer,
   discounts: CustomerDiscounts,
   promotions: Promotion[],
-  today: Date = new Date()
+  today: Date = new Date(),
+  productPromoDiscountPct: number = 0
 ): PriceBreakdown {
   const isClub = customer.customer_type === 'club'
   const symbol = customer.currency === 'GBP' ? '£' : '€'
@@ -116,17 +117,18 @@ export function calculatePrice(
     }
   }
 
-  // Wholesale pricing (unchanged)
+  // Wholesale pricing
   const listPrice = customer.currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
   const customerDiscountPct = getCustomerDiscountForCategory(discounts, product.category)
   const promoDiscountPct = getActivePromoDiscount(promotions, product.category, today)
-  const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
+  const totalPromoDiscountPct = promoDiscountPct + productPromoDiscountPct
+  const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - totalPromoDiscountPct / 100)
 
   return {
     listPrice,
     currency: customer.currency,
     customerDiscountPct,
-    promoDiscountPct,
+    promoDiscountPct: totalPromoDiscountPct,
     finalUnitPrice: Math.round(finalUnitPrice * 100) / 100,
     displayPrice: `${symbol}${finalUnitPrice.toFixed(2)}`,
     isClub: false,
