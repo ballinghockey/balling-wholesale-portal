@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
 
   if (action === 'notify_customer') {
     const changesList = body.changes ?? []
+    console.log('[notify] orderId:', orderId, 'changes:', changesList.length, 'orderData:', !!orderData, 'resend:', !!process.env.RESEND_API_KEY)
 
     if (orderData && process.env.RESEND_API_KEY) {
       const symbol = orderData.currency === 'GBP' ? '£' : '€'
