@@ -452,20 +452,27 @@ function CustomerRow({ customer, onSaved }: { customer: Customer; onSaved: () =>
   )
 }
 
+type CatalogProduct = { product_group: string; product_name: string; category: string }
+
 function ProductPromos({ customerId, promos, onSaved }: {
   customerId: string; promos: ProductPromotion[]; onSaved: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [searchQ, setSearchQ] = useState('')
-  const [searchResults, setSearchResults] = useState<{product_group: string; product_name: string}[]>([])
-  const [newPromo, setNewPromo] = useState({ product_group: '', product_name: '', discount_pct: '10', start_date: new Date().toISOString().slice(0,10), end_date: '' })
+  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string>('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [discount, setDiscount] = useState('10')
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0,10))
+  const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
 
-  async function searchProducts(q: string) {
-    setSearchQ(q)
-    if (q.length < 2) { setSearchResults([]); return }
-    const res = await fetch(`/api/admin/edit-order?q=${encodeURIComponent(q)}`)
+  const CATEGORIES = ['Sticks', 'Bags', 'Accessories', 'Shoes', 'Padel']
+
+  async function loadProducts() {
+    setLoadingProducts(true)
+    const res = await fetch('/api/admin/edit-order?q=a')
     const data = await res.json()
     const seen = new Set<string>()
     const unique = (data.products ?? []).filter((p: any) => {
@@ -473,21 +480,38 @@ function ProductPromos({ customerId, promos, onSaved }: {
       seen.add(p.product_group)
       return true
     })
-    setSearchResults(unique)
+    setAllProducts(unique)
+    setLoadingProducts(false)
+    if (unique.length > 0) setActiveCategory(unique[0].category ?? 'Sticks')
   }
 
-  async function addPromo() {
-    if (!newPromo.product_group || !newPromo.end_date) return
-    setSaving(true)
-    await fetch('/api/admin/update-user', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'product_promo_add', id: customerId, data: newPromo }),
+  function toggleProduct(product_group: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(product_group)) next.delete(product_group)
+      else next.add(product_group)
+      return next
     })
+  }
+
+  async function addPromos() {
+    if (selected.size === 0 || !endDate) return
+    setSaving(true)
+    for (const pg of selected) {
+      const product = allProducts.find(p => p.product_group === pg)
+      await fetch('/api/admin/update-user', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'product_promo_add', id: customerId,
+          data: { product_group: pg, product_name: product?.product_name ?? pg, discount_pct: discount, start_date: startDate, end_date: endDate }
+        }),
+      })
+    }
     setSaving(false)
     setAdding(false)
-    setNewPromo({ product_group: '', product_name: '', discount_pct: '10', start_date: new Date().toISOString().slice(0,10), end_date: '' })
-    setSearchQ('')
-    setSearchResults([])
+    setSelected(new Set())
+    setDiscount('10')
+    setEndDate('')
     onSaved()
   }
 
@@ -499,13 +523,15 @@ function ProductPromos({ customerId, promos, onSaved }: {
     onSaved()
   }
 
+  const filteredProducts = allProducts.filter(p => p.category === activeCategory)
+
   return (
     <div className="border-t border-neutral-100">
       <div className="px-4 py-3 flex items-center justify-between">
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
           Product promotions {promos.length > 0 && <span className="ml-1 text-emerald-600 font-medium">({promos.length} active)</span>}
         </button>
-        <button onClick={() => { setExpanded(true); setAdding(true) }}
+        <button onClick={() => { setExpanded(true); setAdding(true); if (allProducts.length === 0) loadProducts() }}
           className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors">
           + Add promo
         </button>
@@ -521,60 +547,75 @@ function ProductPromos({ customerId, promos, onSaved }: {
                     <p className="text-xs text-neutral-400">{p.discount_pct}% extra · {p.start_date} → {p.end_date}</p>
                   </div>
                   <button onClick={() => removePromo(p.id)}
-                    className="text-neutral-300 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                    className="text-neutral-300 hover:text-red-400 transition-colors text-lg leading-none ml-3">×</button>
                 </div>
               ))}
             </div>
           )}
           {adding && (
             <div className="border border-neutral-200 rounded-lg p-3 space-y-3">
-              <div>
-                <label className="block text-xs text-neutral-400 mb-1">Search product</label>
-                <input type="text" value={searchQ} onChange={(e) => searchProducts(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                  placeholder="Search by name or SKU..." />
-                {searchResults.length > 0 && (
-                  <div className="mt-1 border border-neutral-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                    {searchResults.map((p) => (
-                      <button key={p.product_group} onClick={() => {
-                        setNewPromo(prev => ({ ...prev, product_group: p.product_group, product_name: p.product_name }))
-                        setSearchQ(p.product_name)
-                        setSearchResults([])
-                      }} className="w-full text-left px-3 py-2 text-xs hover:bg-neutral-50 border-b border-neutral-100 last:border-0">
-                        {p.product_name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-neutral-400 mb-1">Discount %</label>
-                  <input type="number" min={1} max={100} value={newPromo.discount_pct}
-                    onChange={(e) => setNewPromo(p => ({ ...p, discount_pct: e.target.value }))}
+                  <input type="number" min={1} max={100} value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
                     className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900" />
                 </div>
                 <div>
                   <label className="block text-xs text-neutral-400 mb-1">Start date</label>
-                  <input type="date" value={newPromo.start_date}
-                    onChange={(e) => setNewPromo(p => ({ ...p, start_date: e.target.value }))}
+                  <input type="date" value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
                     className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
                 </div>
                 <div>
-                  <label className="block text-xs text-neutral-400 mb-1">End date</label>
-                  <input type="date" value={newPromo.end_date}
-                    onChange={(e) => setNewPromo(p => ({ ...p, end_date: e.target.value }))}
+                  <label className="block text-xs text-neutral-400 mb-1">End date *</label>
+                  <input type="date" value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
                     className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
                 </div>
               </div>
+
+              {/* Category tabs */}
+              <div className="flex gap-1 flex-wrap">
+                {CATEGORIES.map(cat => (
+                  <button key={cat} onClick={() => setActiveCategory(cat)}
+                    className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${activeCategory === cat ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-500 hover:border-neutral-400'}`}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Product list */}
+              {loadingProducts ? (
+                <p className="text-xs text-neutral-400 text-center py-4">Loading products...</p>
+              ) : (
+                <div className="border border-neutral-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-xs text-neutral-400 text-center py-4">No products in this category</p>
+                  ) : filteredProducts.map((p) => (
+                    <button key={p.product_group} onClick={() => toggleProduct(p.product_group)}
+                      className={`w-full text-left px-3 py-2 text-xs border-b border-neutral-100 last:border-0 flex items-center gap-2 transition-colors ${selected.has(p.product_group) ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-neutral-50 text-neutral-700'}`}>
+                      <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center text-xs ${selected.has(p.product_group) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-neutral-300'}`}>
+                        {selected.has(p.product_group) ? '✓' : ''}
+                      </span>
+                      {p.product_name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {selected.size > 0 && (
+                <p className="text-xs text-emerald-600 font-medium">{selected.size} product{selected.size > 1 ? 's' : ''} selected</p>
+              )}
+
               <div className="flex gap-2">
-                <button onClick={() => { setAdding(false); setSearchQ(''); setSearchResults([]) }}
+                <button onClick={() => { setAdding(false); setSelected(new Set()) }}
                   className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-1.5 text-xs hover:bg-neutral-50 transition-colors">
                   Cancel
                 </button>
-                <button onClick={addPromo} disabled={saving || !newPromo.product_group || !newPromo.end_date}
+                <button onClick={addPromos} disabled={saving || selected.size === 0 || !endDate}
                   className="flex-1 rounded-lg bg-neutral-900 text-white py-1.5 text-xs font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors">
-                  {saving ? 'Saving...' : 'Add promo'}
+                  {saving ? 'Saving...' : `Add ${selected.size > 0 ? selected.size : ''} promo${selected.size > 1 ? 's' : ''}`}
                 </button>
               </div>
             </div>
