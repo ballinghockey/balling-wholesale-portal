@@ -14,6 +14,7 @@ type CartItem = {
   listPrice: number
   customerDiscountPct: number
   promoDiscountPct: number
+  productPromoDiscountPct: number
   finalUnitPrice: number
   lineTotal: number
   currency: 'GBP' | 'EUR'
@@ -234,8 +235,12 @@ export default function CartView({
                     <p className="text-xs text-neutral-400 mt-0.5">{item.size} · SKU: {item.sku}</p>
                     {item.customerDiscountPct > 0 && (
                       <p className="text-xs text-emerald-600 mt-0.5">
-                        Additional discount {item.customerDiscountPct}% already applied
-                        {item.promoDiscountPct > 0 && ` + promo ${item.promoDiscountPct}%`}
+                        {item.customerDiscountPct}% wholesale discount applied
+                      </p>
+                    )}
+                    {item.productPromoDiscountPct > 0 && (
+                      <p className="text-xs text-blue-600 mt-0.5 font-medium">
+                        + Promotional {item.productPromoDiscountPct}% OFF
                       </p>
                     )}
                   </div>
