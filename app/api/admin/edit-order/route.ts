@@ -118,12 +118,17 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: products } = await serviceClient
+  // If query is short (catalog browse mode), return all products grouped
+  let query = serviceClient
     .from('products')
-    .select('sku, product_name, size, base_price_gbp, base_price_eur, category')
+    .select('sku, product_name, product_group, size, base_price_gbp, base_price_eur, category')
     .eq('active', true)
-    .or(`sku.ilike.%${q}%,product_name.ilike.%${q}%`)
-    .limit(20)
+
+  if (q.length >= 2) {
+    query = query.or(`sku.ilike.%${q}%,product_name.ilike.%${q}%`)
+  }
+
+  const { data: products } = await query.order('category').order('product_name').limit(500)
 
   return NextResponse.json({ products: products ?? [] })
 }
