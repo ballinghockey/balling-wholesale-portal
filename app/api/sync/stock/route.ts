@@ -117,8 +117,10 @@ export async function GET(req: NextRequest) {
     for (const v of ukVariants) {
       if (!v.price || v.price === 0) continue
       const isOnSale = v.compareAtPrice !== null && v.compareAtPrice > v.price
+      // RRP = compareAtPrice if on sale, otherwise price
       const rrp = isOnSale ? v.compareAtPrice! : v.price
-      const wholesale = Math.round((rrp / 2) * 100) / 100
+      // Wholesale always = current price / 2 (not RRP / 2)
+      const wholesale = Math.round((v.price / 2) * 100) / 100
       priceUpdates.push({
         sku: v.sku,
         rrp_gbp: Math.round(rrp * 100) / 100,
@@ -133,8 +135,10 @@ export async function GET(req: NextRequest) {
     for (const v of euVariants) {
       if (!v.price || v.price === 0) continue
       const isOnSale = v.compareAtPrice !== null && v.compareAtPrice > v.price
+      // RRP = compareAtPrice if on sale, otherwise price
       const rrp = isOnSale ? v.compareAtPrice! : v.price
-      const wholesale = Math.round((rrp / 2) * 100) / 100
+      // Wholesale always = current price / 2 (not RRP / 2)
+      const wholesale = Math.round((v.price / 2) * 100) / 100
       eurPriceUpdates.push({
         sku: v.sku,
         rrp_eur: Math.round(rrp * 100) / 100,
