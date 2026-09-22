@@ -23,6 +23,7 @@ type Customer = {
   email_login: string; country: string; warehouse: string; currency: string
   vat_rule: string; active: boolean; customer_type?: string
   discounts: { sticks_pct: number; bags_pct: number; accessories_pct: number; apparel_pct: number; shoes_pct: number } | null
+  promotions?: ProductPromotion[]
 }
 type Athlete = {
   athlete_id: string; athlete_name: string; contact_name: string
