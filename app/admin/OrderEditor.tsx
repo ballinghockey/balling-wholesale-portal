@@ -254,43 +254,44 @@ export default function OrderEditor({
       </div>
     </div>
 
-      {showNotifyModal && (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-xl">
-            <h3 className="font-semibold text-neutral-900 mb-2">Notify customer?</h3>
-            <p className="text-sm text-neutral-500 mb-3">The following changes were made:</p>
-            <ul className="mb-4 space-y-1">
-              {changes.map((c, i) => (
-                <li key={i} className="text-xs text-neutral-700 bg-neutral-50 rounded px-2 py-1">{c}</li>
-              ))}
-            </ul>
-            <p className="text-sm text-neutral-500 mb-6">Send an email to the customer with these changes and the updated order?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowNotifyModal(false); onSaved(lines); onClose() }}
-                className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors"
-              >
-                Skip notification
-              </button>
-              <button
-                onClick={async () => {
-                  await fetch('/api/admin/edit-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'notify_customer', orderId, changes }),
-                  })
-                  setShowNotifyModal(false)
-                  onSaved(lines)
-                  onClose()
-                }}
-                className="flex-1 rounded-lg bg-neutral-900 text-white py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
-              >
-                Send notification
-              </button>
+        {showNotifyModal && (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-xl">
+              <h3 className="font-semibold text-neutral-900 mb-2">Notify customer?</h3>
+              <p className="text-sm text-neutral-500 mb-3">The following changes were made:</p>
+              <ul className="mb-4 space-y-1">
+                {changes.map((c, i) => (
+                  <li key={i} className="text-xs text-neutral-700 bg-neutral-50 rounded px-2 py-1">{c}</li>
+                ))}
+              </ul>
+              <p className="text-sm text-neutral-500 mb-6">Send an email to the customer with these changes and the updated order?</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowNotifyModal(false); onSaved(lines); onClose() }}
+                  className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors"
+                >
+                  Skip notification
+                </button>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/admin/edit-order', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'notify_customer', orderId, changes }),
+                    })
+                    setShowNotifyModal(false)
+                    onSaved(lines)
+                    onClose()
+                  }}
+                  className="flex-1 rounded-lg bg-neutral-900 text-white py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
+                >
+                  Send notification
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-  </div>
+        )}
+      </div>
+    </div>
   )
 }
