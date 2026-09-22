@@ -130,9 +130,9 @@ export default function CartView({
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
         <div className="text-4xl mb-4">✅</div>
-        <h1 className="text-2xl font-semibold text-neutral-900 mb-2">Order confirmed!</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900 mb-2">Order received!</h1>
         <p className="text-neutral-500 mb-8">
-          Your order has been submitted. You'll receive a confirmation email shortly.
+          Your order has been submitted and is being reviewed by our team. You'll receive an email shortly.
         </p>
         <button
           onClick={() => router.push('/catalog')}
@@ -309,7 +309,7 @@ export default function CartView({
             disabled={confirming || items.length === 0}
             className="w-full rounded-lg bg-neutral-900 text-white py-3 text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors"
           >
-            {confirming ? 'Confirming...' : 'Confirm order'}
+            {confirming ? 'Submitting...' : 'Submit order'}
           </button>
           <p className="text-xs text-neutral-400 text-center mt-2">
             Your Balling representative will review and confirm your order.
