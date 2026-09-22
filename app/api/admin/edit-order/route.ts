@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
 
   let query = serviceClient
     .from('products')
-    .select('sku, product_name, product_group, size, base_price_gbp, base_price_eur, category')
+    .select('sku, product_name, product_group, size, base_price_gbp, base_price_eur, category, subcategory')
     .eq('active', true)
     .order('category')
     .order('product_name')
