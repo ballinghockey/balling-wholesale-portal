@@ -142,6 +142,11 @@ export default function CatalogView({
               {group.onSale && (
                 <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-600 flex-shrink-0">Sale</span>
               )}
+              {group.variants[0]?.promoDiscountPct > 0 && (
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">
+                  +{group.variants[0].promoDiscountPct}% off
+                </span>
+              )}
             </div>
             <p className="text-xs text-neutral-400">{group.variants.length} {group.variants.length === 1 ? 'size' : 'sizes'}</p>
           </div>
@@ -162,6 +167,9 @@ export default function CatalogView({
                   <div className="text-xs text-neutral-400 line-through">{formatPrice(v.listPrice, v.currency)}</div>
                 )}
                 <div className="font-semibold text-neutral-900">{v.displayPrice}</div>
+                {v.promoDiscountPct > 0 && (
+                  <div className="text-xs text-blue-600 font-medium">+{v.promoDiscountPct}% promo</div>
+                )}
               </div>
               <input
                 type="number"
@@ -199,6 +207,11 @@ export default function CatalogView({
               <h3 className="font-medium text-neutral-900 text-xs leading-tight">{group.productName}</h3>
               {group.onSale && (
                 <span className="text-xs font-semibold px-1 py-0.5 rounded bg-red-100 text-red-600 flex-shrink-0">Sale</span>
+              )}
+              {group.variants[0]?.promoDiscountPct > 0 && (
+                <span className="text-xs font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">
+                  +{group.variants[0].promoDiscountPct}% off
+                </span>
               )}
             </div>
             <div className="space-y-1.5">
