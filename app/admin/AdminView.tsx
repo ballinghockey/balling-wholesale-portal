@@ -452,7 +452,7 @@ function CustomerRow({ customer, onSaved }: { customer: Customer; onSaved: () =>
   )
 }
 
-type CatalogProduct = { product_group: string; product_name: string; category: string }
+type CatalogProduct = { product_group: string; product_name: string; category: string; subcategory?: string; sku?: string }
 
 function ProductPromos({ customerId, promos, onSaved }: {
   customerId: string; promos: ProductPromotion[]; onSaved: () => void
@@ -615,7 +615,8 @@ function ProductPromos({ customerId, promos, onSaved }: {
                       <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center text-xs ${selected.has(p.product_group) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-neutral-300'}`}>
                         {selected.has(p.product_group) ? '✓' : ''}
                       </span>
-                      {p.product_name}
+                      <span className="flex-1">{p.product_name}</span>
+                      {p.subcategory && <span className="text-neutral-400 ml-2 flex-shrink-0">{p.subcategory}</span>}
                     </button>
                   ))}
                 </div>
