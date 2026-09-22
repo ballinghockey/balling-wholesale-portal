@@ -291,5 +291,6 @@ export default function OrderEditor({
           </div>
         </div>
       )}
+  </div>
   )
 }
