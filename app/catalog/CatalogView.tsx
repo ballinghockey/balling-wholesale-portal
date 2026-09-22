@@ -144,7 +144,7 @@ export default function CatalogView({
               )}
               {group.variants[0]?.promoDiscountPct > 0 && (
                 <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">
-                  + Promotional {group.variants[0].promoDiscountPct}% OFF
+                  Promo +{group.variants[0].promoDiscountPct}%
                 </span>
               )}
             </div>
@@ -168,7 +168,7 @@ export default function CatalogView({
                 )}
                 <div className="font-semibold text-neutral-900">{v.displayPrice}</div>
                 {v.promoDiscountPct > 0 && (
-                  <div className="text-xs text-blue-600 font-medium">+ Promotional {v.promoDiscountPct}% OFF</div>
+                  <div className="text-xs text-blue-600 font-medium">Promo +{v.promoDiscountPct}%</div>
                 )}
               </div>
               <input
@@ -210,7 +210,7 @@ export default function CatalogView({
               )}
               {group.variants[0]?.promoDiscountPct > 0 && (
                 <span className="text-xs font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">
-                  + Promotional {group.variants[0].promoDiscountPct}% OFF
+                  Promo +{group.variants[0].promoDiscountPct}%
                 </span>
               )}
             </div>
