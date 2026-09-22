@@ -174,11 +174,12 @@ export default function CatalogView({
               <input
                 type="number"
                 min={0}
+                max={v.stock > 0 ? v.stock : undefined}
                 inputMode="numeric"
                 disabled={v.stockStatus === 'Out of Stock'}
                 value={cart[v.sku] ?? 0}
                 onChange={(e) => {
-                  const qty = Math.max(0, parseInt(e.target.value || '0', 10))
+                  const qty = Math.min(Math.max(0, parseInt(e.target.value || '0', 10)), v.stock > 0 ? v.stock : 9999)
                   updateQty(v.sku, qty)
                 }}
                 onWheel={(e) => (e.target as HTMLInputElement).blur()}
