@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   // Fetch current order to check previous status
   const { data: order } = await serviceClient
     .from('order_requests')
-    .select('status, customer_id, net_total, currency')
+    .select('status, customer_id, net_total, currency, loyalty_credit_applied')
     .eq('order_id', orderId)
     .single()
 
@@ -70,7 +70,10 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       const currentSpent = loyalty?.total_spent ?? 0
-      const newTotalSpent = currentSpent + order.net_total
+      // Only count what the customer actually paid (net_total minus any loyalty credit used)
+      const loyaltyCreditUsed = order.loyalty_credit_applied ?? 0
+      const actualSpent = Math.max(0, order.net_total - loyaltyCreditUsed)
+      const newTotalSpent = currentSpent + actualSpent
 
       const oldCycles = Math.floor(currentSpent / loyaltyRule.spend_threshold)
       const newCycles = Math.floor(newTotalSpent / loyaltyRule.spend_threshold)
