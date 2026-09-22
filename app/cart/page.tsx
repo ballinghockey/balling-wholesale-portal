@@ -87,6 +87,13 @@ export default async function CartPage() {
     .select('*')
     .eq('active', true)
 
+  // Fetch product-specific promotions for this customer
+  const { data: productPromos } = await supabase
+    .from('product_promotions')
+    .select('product_group, discount_pct, start_date, end_date')
+    .eq('customer_id', customer.customer_id)
+    .eq('active', true)
+
   const productGroups = [...new Set((cartRows ?? []).map((r: any) => r.products?.product_group).filter(Boolean))]
   const groupImageMap = new Map<string, string>()
 
@@ -135,7 +142,14 @@ export default async function CartPage() {
         promo.category === p.category && promo.start_date <= today && promo.end_date >= today
       )
       promoDiscountPct = activePromo?.extra_discount_pct ?? 0
-      finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - promoDiscountPct / 100)
+      // Check for product-specific promo
+      const productPromo = (productPromos ?? []).find((pp: any) =>
+        pp.product_group === p.product_group && pp.start_date <= today && pp.end_date >= today
+      )
+      const productPromoDiscountPct = productPromo?.discount_pct ?? 0
+      const totalDiscountPct = Math.min(customerDiscountPct + promoDiscountPct + productPromoDiscountPct, 100)
+      finalUnitPrice = listPrice * (1 - totalDiscountPct / 100)
+      promoDiscountPct = promoDiscountPct + productPromoDiscountPct
     }
 
     const lineTotal = finalUnitPrice * row.qty
@@ -155,7 +169,10 @@ export default async function CartPage() {
       lineTotal: Math.round(lineTotal * 100) / 100,
       currency: customer.currency as 'GBP' | 'EUR',
       displayListPrice: `${symbol}${listPrice.toFixed(2)}`,
-      displayFinalPrice: `${symbol}${finalUnitPrice.toFixed(2)}`,
+      displayFinalPrice: `${symbol}${(Math.round(finalUnitPrice * 100) / 100).toFixed(2)}`,
+      productPromoDiscountPct: isClub ? 0 : ((productPromos ?? []).find((pp: any) =>
+        pp.product_group === p.product_group && pp.start_date <= today && pp.end_date >= today
+      )?.discount_pct ?? 0),
     }
   })
 
