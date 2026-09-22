@@ -531,7 +531,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
           Product promotions {promos.length > 0 && <span className="ml-1 text-emerald-600 font-medium">({promos.length} active)</span>}
         </button>
-        <button onClick={() => { setExpanded(true); setAdding(true); if (allProducts.length === 0) loadProducts() }}
+        <button onClick={() => { setExpanded(true); setAdding(true); loadProducts() }}
           className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors">
           + Add promo
         </button>
