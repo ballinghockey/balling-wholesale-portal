@@ -472,7 +472,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
 
   async function loadProducts() {
     setLoadingProducts(true)
-    const res = await fetch('/api/admin/edit-order?q=a')
+    const res = await fetch('/api/admin/edit-order?q=')
     const data = await res.json()
     const seen = new Set<string>()
     const unique = (data.products ?? []).filter((p: any) => {
@@ -482,7 +482,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
     })
     setAllProducts(unique)
     setLoadingProducts(false)
-    if (unique.length > 0) setActiveCategory(unique[0].category ?? 'Sticks')
+    setActiveCategory('Sticks')
   }
 
   function toggleProduct(product_group: string) {
