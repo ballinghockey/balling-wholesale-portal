@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [showReset, setShowReset] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,20 +28,8 @@ export default function LoginPage() {
       return
     }
 
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('is_admin')
-      .eq('auth_user_id', data.user.id)
-      .maybeSingle()
-
     setLoading(false)
-
-    if (customer?.is_admin) {
-      router.push('/admin')
-    } else {
-      router.push('/catalog')
-    }
-
+    router.push('/catalog')
     router.refresh()
   }
 
