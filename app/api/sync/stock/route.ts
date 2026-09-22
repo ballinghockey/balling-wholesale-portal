@@ -18,7 +18,7 @@ async function fetchShopifyData(shop: string, accessToken: string): Promise<Vari
   let cursor: string | null = null
 
   do {
-    const afterClause = cursor ? `, after: "${cursor}"` : ''
+    const afterClause: string = cursor ? `, after: "${cursor}"` : ''
     const query = `{
       productVariants(first: 250${afterClause}) {
         pageInfo { hasNextPage endCursor }
