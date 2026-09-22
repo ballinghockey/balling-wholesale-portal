@@ -275,6 +275,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No items in order' }, { status: 400 })
   }
 
+  // Validate stock availability before processing
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Determine warehouse from customer or athlete
+  let warehouse = 'EU'
+  if (!isAthlete) {
+    const { data: customerData } = await supabase
+      .from('customers')
+      .select('warehouse')
+      .eq('customer_id', customerId)
+      .single()
+    warehouse = customerData?.warehouse ?? 'EU'
+  } else {
+    const { data: athleteData } = await supabase
+      .from('athletes')
+      .select('warehouse')
+      .eq('athlete_id', customerId)
+      .single()
+    warehouse = athleteData?.warehouse ?? 'EU'
+  }
+
+  const stockTable = warehouse === 'UK' ? 'stock_uk' : 'stock_eu'
+  const skus = (items as OrderItem[]).map((i) => i.sku)
+
+  const { data: stockData } = await serviceClient
+    .from(stockTable)
+    .select('sku, stock')
+    .in('sku', skus)
+
+  const stockMap = new Map((stockData ?? []).map((s: any) => [s.sku, s.stock]))
+
+  for (const item of items as OrderItem[]) {
+    const available = stockMap.get(item.sku) ?? 0
+    if (item.qty > available) {
+      return NextResponse.json({
+        error: `Insufficient stock for ${item.productName} (${item.size}). Available: ${available}, requested: ${item.qty}`
+      }, { status: 400 })
+    }
+  }
+
   const orderId = crypto.randomUUID()
   const orderDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
