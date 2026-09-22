@@ -459,6 +459,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
 }) {
   const [expanded, setExpanded] = useState(false)
   const [localPromos, setLocalPromos] = useState<ProductPromotion[]>(promos)
+  const [searchFilter, setSearchFilter] = useState('')
   const [adding, setAdding] = useState(false)
   const [allProducts, setAllProducts] = useState<CatalogProduct[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
@@ -540,7 +541,10 @@ function ProductPromos({ customerId, promos, onSaved }: {
     onSaved()
   }
 
-  const filteredProducts = allProducts.filter(p => p.category === activeCategory)
+  const filteredProducts = allProducts.filter(p =>
+    p.category === activeCategory &&
+    (searchFilter === '' || p.product_name.toLowerCase().includes(searchFilter.toLowerCase()) || (p.subcategory ?? '').toLowerCase().includes(searchFilter.toLowerCase()))
+  )
 
   return (
     <div className="border-t border-neutral-100">
@@ -591,6 +595,15 @@ function ProductPromos({ customerId, promos, onSaved }: {
                     className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
                 </div>
               </div>
+
+              {/* Search filter */}
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Filter products..."
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
 
               {/* Category tabs */}
               <div className="flex gap-1 flex-wrap">
