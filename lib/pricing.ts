@@ -117,18 +117,18 @@ export function calculatePrice(
     }
   }
 
-  // Wholesale pricing
+  // Wholesale pricing — discounts are summed (not compounded)
   const listPrice = customer.currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
   const customerDiscountPct = getCustomerDiscountForCategory(discounts, product.category)
   const promoDiscountPct = getActivePromoDiscount(promotions, product.category, today)
-  const totalPromoDiscountPct = promoDiscountPct + productPromoDiscountPct
-  const finalUnitPrice = listPrice * (1 - customerDiscountPct / 100) * (1 - totalPromoDiscountPct / 100)
+  const totalDiscountPct = Math.min(customerDiscountPct + promoDiscountPct + productPromoDiscountPct, 100)
+  const finalUnitPrice = listPrice * (1 - totalDiscountPct / 100)
 
   return {
     listPrice,
     currency: customer.currency,
     customerDiscountPct,
-    promoDiscountPct: totalPromoDiscountPct,
+    promoDiscountPct: promoDiscountPct + productPromoDiscountPct,
     finalUnitPrice: Math.round(finalUnitPrice * 100) / 100,
     displayPrice: `${symbol}${finalUnitPrice.toFixed(2)}`,
     isClub: false,
