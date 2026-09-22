@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showReset, setShowReset] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
 
