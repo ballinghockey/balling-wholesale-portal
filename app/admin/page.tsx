@@ -36,6 +36,11 @@ export default async function AdminPage() {
     .from('customer_discounts')
     .select('*')
 
+  const { data: productPromos } = await admin
+    .from('product_promotions')
+    .select('*')
+    .eq('active', true)
+
   const { data: athletes } = await admin
     .from('athletes')
     .select('athlete_id, athlete_name, contact_name, email_login, country, warehouse, currency, active')
@@ -48,6 +53,11 @@ export default async function AdminPage() {
   const customerMap = new Map((customers ?? []).map((c) => [c.customer_id, { name: c.customer_name, email: c.email_login, isAthlete: false }]))
   const athleteMap = new Map((athletes ?? []).map((a) => [a.athlete_id, { name: a.athlete_name, email: a.email_login, isAthlete: true }]))
   const discountMap = new Map((customerDiscounts ?? []).map((d) => [d.customer_id, d]))
+  const promosByCustomer = new Map<string, any[]>()
+  for (const p of productPromos ?? []) {
+    if (!promosByCustomer.has(p.customer_id)) promosByCustomer.set(p.customer_id, [])
+    promosByCustomer.get(p.customer_id)!.push(p)
+  }
   const creditsMap = new Map((athleteCredits ?? []).map((c) => [c.athlete_id, c]))
 
   const wholesaleOrders = []
@@ -65,7 +75,7 @@ export default async function AdminPage() {
 
   const customersWithDiscounts = (customers ?? [])
     .filter((c) => c.customer_id !== 'master')
-    .map((c) => ({ ...c, discounts: discountMap.get(c.customer_id) ?? null }))
+    .map((c) => ({ ...c, discounts: discountMap.get(c.customer_id) ?? null, promotions: promosByCustomer.get(c.customer_id) ?? [] }))
 
   const athletesWithCredits = (athletes ?? []).map((a) => ({
     ...a, credits: creditsMap.get(a.athlete_id) ?? null
