@@ -458,6 +458,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
   customerId: string; promos: ProductPromotion[]; onSaved: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [localPromos, setLocalPromos] = useState<ProductPromotion[]>(promos)
   const [adding, setAdding] = useState(false)
   const [allProducts, setAllProducts] = useState<CatalogProduct[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
@@ -507,6 +508,21 @@ function ProductPromos({ customerId, promos, onSaved }: {
         }),
       })
     }
+    // Update local state immediately
+    const newPromos: ProductPromotion[] = []
+    for (const pg of selected) {
+      const product = allProducts.find(p => p.product_group === pg)
+      newPromos.push({
+        id: Math.random().toString(),
+        product_group: pg,
+        product_name: product?.product_name ?? pg,
+        discount_pct: parseFloat(discount),
+        start_date: startDate,
+        end_date: endDate,
+        active: true,
+      })
+    }
+    setLocalPromos(prev => [...prev, ...newPromos])
     setSaving(false)
     setAdding(false)
     setSelected(new Set())
@@ -520,6 +536,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'product_promo_delete', id: promoId }),
     })
+    setLocalPromos(prev => prev.filter(p => p.id !== promoId))
     onSaved()
   }
 
@@ -529,7 +546,7 @@ function ProductPromos({ customerId, promos, onSaved }: {
     <div className="border-t border-neutral-100">
       <div className="px-4 py-3 flex items-center justify-between">
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
-          Product promotions {promos.length > 0 && <span className="ml-1 text-emerald-600 font-medium">({promos.length} active)</span>}
+          Product promotions {localPromos.length > 0 && <span className="ml-1 text-emerald-600 font-medium">({localPromos.length} active)</span>}
         </button>
         <button onClick={() => { setExpanded(true); setAdding(true); loadProducts() }}
           className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors">
@@ -538,9 +555,9 @@ function ProductPromos({ customerId, promos, onSaved }: {
       </div>
       {expanded && (
         <div className="px-4 pb-4 space-y-3">
-          {promos.length > 0 && (
+          {localPromos.length > 0 && (
             <div className="space-y-2">
-              {promos.map((p) => (
+              {localPromos.map((p) => (
                 <div key={p.id} className="flex items-center justify-between bg-neutral-50 rounded-lg px-3 py-2">
                   <div>
                     <p className="text-xs font-medium text-neutral-900">{p.product_name}</p>
