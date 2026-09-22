@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     type: 'invite',
     email,
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://balling-wholesale-portal.vercel.app'}/set-password`,
+      redirectTo: `${process.env.APP_URL ?? 'https://portal.ballinghockey.com'}/set-password`,
       data: { customer_id, type: 'customer' },
     }
   })
