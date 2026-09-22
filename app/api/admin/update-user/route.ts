@@ -67,5 +67,25 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  if (type === 'product_promo_add') {
+    const { error } = await serviceClient
+      .from('product_promotions')
+      .insert({
+        customer_id: id,
+        product_group: data.product_group,
+        product_name: data.product_name,
+        discount_pct: parseFloat(data.discount_pct),
+        start_date: data.start_date,
+        end_date: data.end_date,
+        active: true,
+      })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (type === 'product_promo_delete') {
+    // id is the promo UUID here
+    await serviceClient.from('product_promotions').delete().eq('id', id)
+  }
+
   return NextResponse.json({ ok: true })
 }
