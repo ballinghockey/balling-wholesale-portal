@@ -439,6 +439,142 @@ function CustomerRow({ customer, onSaved }: { customer: Customer; onSaved: () =>
           </button>
         </div>
       )}
+
+      {/* Product promotions */}
+      <ProductPromos customerId={customer.customer_id} promos={customer.promotions ?? []} onSaved={onSaved} />
+    </div>
+  )
+}
+
+function ProductPromos({ customerId, promos, onSaved }: {
+  customerId: string; promos: ProductPromotion[]; onSaved: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [searchQ, setSearchQ] = useState('')
+  const [searchResults, setSearchResults] = useState<{product_group: string; product_name: string}[]>([])
+  const [newPromo, setNewPromo] = useState({ product_group: '', product_name: '', discount_pct: '10', start_date: new Date().toISOString().slice(0,10), end_date: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function searchProducts(q: string) {
+    setSearchQ(q)
+    if (q.length < 2) { setSearchResults([]); return }
+    const res = await fetch(`/api/admin/edit-order?q=${encodeURIComponent(q)}`)
+    const data = await res.json()
+    const seen = new Set<string>()
+    const unique = (data.products ?? []).filter((p: any) => {
+      if (seen.has(p.product_group)) return false
+      seen.add(p.product_group)
+      return true
+    })
+    setSearchResults(unique)
+  }
+
+  async function addPromo() {
+    if (!newPromo.product_group || !newPromo.end_date) return
+    setSaving(true)
+    await fetch('/api/admin/update-user', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'product_promo_add', id: customerId, data: newPromo }),
+    })
+    setSaving(false)
+    setAdding(false)
+    setNewPromo({ product_group: '', product_name: '', discount_pct: '10', start_date: new Date().toISOString().slice(0,10), end_date: '' })
+    setSearchQ('')
+    setSearchResults([])
+    onSaved()
+  }
+
+  async function removePromo(promoId: string) {
+    await fetch('/api/admin/update-user', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'product_promo_delete', id: promoId }),
+    })
+    onSaved()
+  }
+
+  return (
+    <div className="border-t border-neutral-100">
+      <div className="px-4 py-3 flex items-center justify-between">
+        <button onClick={() => setExpanded(!expanded)} className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
+          Product promotions {promos.length > 0 && <span className="ml-1 text-emerald-600 font-medium">({promos.length} active)</span>}
+        </button>
+        <button onClick={() => { setExpanded(true); setAdding(true) }}
+          className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-neutral-400 transition-colors">
+          + Add promo
+        </button>
+      </div>
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3">
+          {promos.length > 0 && (
+            <div className="space-y-2">
+              {promos.map((p) => (
+                <div key={p.id} className="flex items-center justify-between bg-neutral-50 rounded-lg px-3 py-2">
+                  <div>
+                    <p className="text-xs font-medium text-neutral-900">{p.product_name}</p>
+                    <p className="text-xs text-neutral-400">{p.discount_pct}% extra · {p.start_date} → {p.end_date}</p>
+                  </div>
+                  <button onClick={() => removePromo(p.id)}
+                    className="text-neutral-300 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {adding && (
+            <div className="border border-neutral-200 rounded-lg p-3 space-y-3">
+              <div>
+                <label className="block text-xs text-neutral-400 mb-1">Search product</label>
+                <input type="text" value={searchQ} onChange={(e) => searchProducts(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="Search by name or SKU..." />
+                {searchResults.length > 0 && (
+                  <div className="mt-1 border border-neutral-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                    {searchResults.map((p) => (
+                      <button key={p.product_group} onClick={() => {
+                        setNewPromo(prev => ({ ...prev, product_group: p.product_group, product_name: p.product_name }))
+                        setSearchQ(p.product_name)
+                        setSearchResults([])
+                      }} className="w-full text-left px-3 py-2 text-xs hover:bg-neutral-50 border-b border-neutral-100 last:border-0">
+                        {p.product_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Discount %</label>
+                  <input type="number" min={1} max={100} value={newPromo.discount_pct}
+                    onChange={(e) => setNewPromo(p => ({ ...p, discount_pct: e.target.value }))}
+                    className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Start date</label>
+                  <input type="date" value={newPromo.start_date}
+                    onChange={(e) => setNewPromo(p => ({ ...p, start_date: e.target.value }))}
+                    className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">End date</label>
+                  <input type="date" value={newPromo.end_date}
+                    onChange={(e) => setNewPromo(p => ({ ...p, end_date: e.target.value }))}
+                    className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setAdding(false); setSearchQ(''); setSearchResults([]) }}
+                  className="flex-1 rounded-lg border border-neutral-200 text-neutral-600 py-1.5 text-xs hover:bg-neutral-50 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={addPromo} disabled={saving || !newPromo.product_group || !newPromo.end_date}
+                  className="flex-1 rounded-lg bg-neutral-900 text-white py-1.5 text-xs font-medium hover:bg-neutral-800 disabled:opacity-50 transition-colors">
+                  {saving ? 'Saving...' : 'Add promo'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
