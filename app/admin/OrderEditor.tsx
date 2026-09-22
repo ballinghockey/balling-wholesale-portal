@@ -251,9 +251,6 @@ export default function OrderEditor({
             Done
           </button>
         </div>
-      </div>
-    </div>
-
         {showNotifyModal && (
           <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-xl">
