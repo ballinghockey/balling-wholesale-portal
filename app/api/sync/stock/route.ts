@@ -6,12 +6,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-async function fetchShopifyInventory(shop: string, accessToken: string): Promise<Map<string, number>> {
-  const stockMap = new Map<string, number>()
+type VariantData = {
+  sku: string
+  stock: number
+  price: number
+  compareAtPrice: number | null
+}
+
+async function fetchShopifyData(shop: string, accessToken: string): Promise<VariantData[]> {
+  const variants: VariantData[] = []
   let cursor: string | null = null
 
   do {
-    const afterClause: string = cursor ? `, after: "${cursor}"` : ''
+    const afterClause = cursor ? `, after: "${cursor}"` : ''
     const query = `{
       productVariants(first: 250${afterClause}) {
         pageInfo { hasNextPage endCursor }
@@ -19,6 +26,8 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
           node {
             sku
             inventoryQuantity
+            price
+            compareAtPrice
           }
         }
       }
@@ -48,104 +57,123 @@ async function fetchShopifyInventory(shop: string, accessToken: string): Promise
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`)
     }
 
-    const variants = data?.data?.productVariants
-    if (!variants) {
-      throw new Error(`No variants in response`)
+    const pageInfo = data?.data?.productVariants?.pageInfo
+    const edges = data?.data?.productVariants?.edges ?? []
+
+    for (const edge of edges) {
+      const node = edge.node
+      if (!node.sku) continue
+      variants.push({
+        sku: node.sku,
+        stock: Math.max(0, node.inventoryQuantity ?? 0),
+        price: parseFloat(node.price ?? '0'),
+        compareAtPrice: node.compareAtPrice ? parseFloat(node.compareAtPrice) : null,
+      })
     }
 
-    console.log(`[${shop}] Fetched ${variants.edges.length} variants, hasNextPage: ${variants.pageInfo.hasNextPage}`)
-
-    for (const edge of variants.edges) {
-      const { sku, inventoryQuantity } = edge.node
-      if (sku && inventoryQuantity !== null) {
-        stockMap.set(sku, (stockMap.get(sku) ?? 0) + inventoryQuantity)
-      }
-    }
-
-    cursor = variants.pageInfo.hasNextPage ? variants.pageInfo.endCursor : null
+    cursor = pageInfo?.hasNextPage ? pageInfo.endCursor : null
   } while (cursor)
 
-  return stockMap
-}
-
-async function getKnownSkus(): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('sku')
-    .eq('active', true)
-
-  if (error) throw new Error(`Failed to fetch SKUs: ${error.message}`)
-  return new Set((data ?? []).map((r: { sku: string }) => r.sku))
-}
-
-async function upsertStock(table: 'stock_uk' | 'stock_eu', stockMap: Map<string, number>, knownSkus: Set<string>) {
-  const rows = Array.from(stockMap.entries())
-    .filter(([sku]) => knownSkus.has(sku))
-    .map(([sku, stock]) => ({ sku, stock }))
-
-  const skipped = stockMap.size - rows.length
-  console.log(`[${table}] Upserting ${rows.length} rows (skipped ${skipped} unknown SKUs)`)
-
-  const batchSize = 200
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const batch = rows.slice(i, i + batchSize)
-    const { error } = await supabase
-      .from(table)
-      .upsert(batch, { onConflict: 'sku' })
-
-    if (error) {
-      console.error(`[${table}] Upsert error:`, error.message)
-      throw new Error(`Supabase upsert error on ${table}: ${error.message}`)
-    }
-  }
-
-  console.log(`[${table}] Upsert complete`)
-  return rows.length
+  return variants
 }
 
 export async function GET(req: NextRequest) {
-  const isVercelCron = req.headers.get('x-vercel-cron-schedule') !== null
+  const authHeader = req.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  if (!isVercelCron) {
-    const authHeader = req.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const ukShop = 'balling-eu-manegit.myshopify.com'
+    const euShop = 'balling-hockey-global.myshopify.com'
+
+    const [ukVariants, euVariants] = await Promise.all([
+      fetchShopifyData(ukShop, process.env.SHOPIFY_UK_ACCESS_TOKEN!),
+      fetchShopifyData(euShop, process.env.SHOPIFY_EU_ACCESS_TOKEN!),
+    ])
+
+    // Update UK stock
+    const ukStockRows = ukVariants.map(v => ({ sku: v.sku, stock: v.stock }))
+    if (ukStockRows.length > 0) {
+      const { error: ukError } = await supabase
+        .from('stock_uk')
+        .upsert(ukStockRows, { onConflict: 'sku' })
+      if (ukError) console.error('[UK stock] Error:', ukError.message)
     }
-  }
 
-  console.log('[sync-stock] Starting stock sync...')
+    // Update EU stock
+    const euStockRows = euVariants.map(v => ({ sku: v.sku, stock: v.stock }))
+    if (euStockRows.length > 0) {
+      const { error: euError } = await supabase
+        .from('stock_eu')
+        .upsert(euStockRows, { onConflict: 'sku' })
+      if (euError) console.error('[EU stock] Error:', euError.message)
+    }
 
-  // Get all known SKUs from our products table to avoid FK violations
-  const knownSkus = await getKnownSkus()
-  console.log(`[sync-stock] Known SKUs in products table: ${knownSkus.size}`)
+    // Update prices from UK store (GBP) — price = RRP, wholesale = price / 2
+    // If compareAtPrice exists, product is on sale: compareAtPrice = RRP, price = sale price
+    const priceUpdates: { sku: string; rrp_gbp: number; base_price_gbp: number; on_sale: boolean }[] = []
 
-  const results: Record<string, { status: string; synced?: number; error?: string }> = {}
+    for (const v of ukVariants) {
+      if (!v.price || v.price === 0) continue
+      const isOnSale = v.compareAtPrice !== null && v.compareAtPrice > v.price
+      const rrp = isOnSale ? v.compareAtPrice! : v.price
+      const wholesale = Math.round((rrp / 2) * 100) / 100
+      priceUpdates.push({
+        sku: v.sku,
+        rrp_gbp: Math.round(rrp * 100) / 100,
+        base_price_gbp: wholesale,
+        on_sale: isOnSale,
+      })
+    }
 
-  try {
-    const ukToken = process.env.SHOPIFY_UK_ACCESS_TOKEN!
-    const ukStock = await fetchShopifyInventory('balling-eu-manegit.myshopify.com', ukToken)
-    const ukCount = await upsertStock('stock_uk', ukStock, knownSkus)
-    results.uk = { synced: ukCount, status: 'ok' }
+    // Update prices from EU store (EUR)
+    const eurPriceUpdates: { sku: string; rrp_eur: number; base_price_eur: number; on_sale: boolean }[] = []
+
+    for (const v of euVariants) {
+      if (!v.price || v.price === 0) continue
+      const isOnSale = v.compareAtPrice !== null && v.compareAtPrice > v.price
+      const rrp = isOnSale ? v.compareAtPrice! : v.price
+      const wholesale = Math.round((rrp / 2) * 100) / 100
+      eurPriceUpdates.push({
+        sku: v.sku,
+        rrp_eur: Math.round(rrp * 100) / 100,
+        base_price_eur: wholesale,
+        on_sale: isOnSale,
+      })
+    }
+
+    // Batch update prices in Supabase (50 at a time)
+    let pricesUpdated = 0
+    for (let i = 0; i < priceUpdates.length; i += 50) {
+      const batch = priceUpdates.slice(i, i + 50)
+      for (const p of batch) {
+        await supabase
+          .from('products')
+          .update({ rrp_gbp: p.rrp_gbp, base_price_gbp: p.base_price_gbp, on_sale: p.on_sale })
+          .eq('sku', p.sku)
+        pricesUpdated++
+      }
+    }
+
+    for (const p of eurPriceUpdates) {
+      await supabase
+        .from('products')
+        .update({ rrp_eur: p.rrp_eur, base_price_eur: p.base_price_eur, on_sale: p.on_sale })
+        .eq('sku', p.sku)
+    }
+
+    console.log(`[sync] UK: ${ukVariants.length} variants, EU: ${euVariants.length} variants, ${pricesUpdated} prices updated`)
+
+    return NextResponse.json({
+      ok: true,
+      uk_variants: ukVariants.length,
+      eu_variants: euVariants.length,
+      prices_updated: pricesUpdated,
+    })
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[sync-stock] UK error:', msg)
-    results.uk = { status: 'error', error: msg }
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[sync] Fatal error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
-
-  try {
-    const euToken = process.env.SHOPIFY_EU_ACCESS_TOKEN!
-    const euStock = await fetchShopifyInventory('balling-hockey-global.myshopify.com', euToken)
-    const euCount = await upsertStock('stock_eu', euStock, knownSkus)
-    results.eu = { synced: euCount, status: 'ok' }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[sync-stock] EU error:', msg)
-    results.eu = { status: 'error', error: msg }
-  }
-
-  console.log('[sync-stock] Done:', JSON.stringify(results))
-
-  const allOk = Object.values(results).every((r) => r.status === 'ok')
-  return NextResponse.json({ timestamp: new Date().toISOString(), results }, { status: allOk ? 200 : 207 })
 }
