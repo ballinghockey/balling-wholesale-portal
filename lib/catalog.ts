@@ -116,7 +116,7 @@ export async function getCatalogForCustomer(
 ): Promise<ProductGroupWithVariants[]> {
   const supabase = await createClient()
 
-  const [{ data: products }, { data: discountsRow }, { data: promotions }, { data: stockRows }] =
+  const [{ data: products }, { data: discountsRow }, { data: promotions }, { data: stockRows }, { data: productPromos }] =
     await Promise.all([
       supabase.from('products').select('*').eq('active', true),
       supabase
@@ -128,6 +128,11 @@ export async function getCatalogForCustomer(
       supabase
         .from(customer.warehouse === 'UK' ? 'stock_uk' : 'stock_eu')
         .select('sku, stock'),
+      supabase
+        .from('product_promotions')
+        .select('*')
+        .eq('customer_id', customer.customer_id)
+        .eq('active', true),
     ])
 
   if (!products || !discountsRow) return []
@@ -141,7 +146,12 @@ export async function getCatalogForCustomer(
   const groups = new Map<string, ProductGroupWithVariants>()
 
   for (const p of products as (Product & { subcategory?: string; sort_order?: number; on_sale?: boolean })[]) {
-    const price = calculatePrice(p, customer, discounts, promoList)
+    // Check for product-specific promo
+    const today = new Date().toISOString().slice(0, 10)
+    const productPromo = (productPromos ?? []).find(
+      (pp: any) => pp.product_group === p.product_group && pp.start_date <= today && pp.end_date >= today
+    )
+    const price = calculatePrice(p, customer, discounts, promoList, new Date(), productPromo?.discount_pct ?? 0)
     const stock = stockMap.get(p.sku) ?? 0
 
     const variant: SizeVariant = {
