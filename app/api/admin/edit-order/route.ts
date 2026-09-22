@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const { action, orderId, lineId, sku, qty, productName, size, unitPrice } = await req.json()
+  const body = await req.json()
+  const { action, orderId, lineId, sku, qty, productName, size, unitPrice } = body
 
   const serviceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,6 +94,96 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+  }
+
+  // Handle customer notification - send ONE email with all changes
+  // Fetch order data early for notify action
+  const { data: orderData } = await serviceClient
+    .from('order_requests')
+    .select('customer_id, currency, status, vat_rule')
+    .eq('order_id', orderId)
+    .maybeSingle()
+
+  if (action === 'notify_customer') {
+    const changesList = body.changes ?? []
+
+    if (orderData && process.env.RESEND_API_KEY) {
+      const symbol = orderData.currency === 'GBP' ? '£' : '€'
+      const ref = orderId.slice(0, 8).toUpperCase()
+
+      let customerEmail: string | null = null
+      let customerName = 'there'
+      let isAthlete = false
+
+      const { data: customer } = await serviceClient
+        .from('customers').select('email_login, customer_name').eq('customer_id', orderData.customer_id).maybeSingle()
+
+      if (customer) {
+        customerEmail = customer.email_login
+        customerName = customer.customer_name
+      } else {
+        const { data: athlete } = await serviceClient
+          .from('athletes').select('email_login, athlete_name').eq('athlete_id', orderData.customer_id).maybeSingle()
+        if (athlete) { customerEmail = athlete.email_login; customerName = athlete.athlete_name; isAthlete = true }
+      }
+
+      const { data: finalLines } = await serviceClient
+        .from('order_lines').select('product_name, size, qty, final_unit_price, line_total').eq('order_id', orderId)
+
+      const netTotal = (finalLines ?? []).reduce((s: number, l: any) => s + (l.line_total ?? 0), 0)
+
+      if (customerEmail) {
+        const changesHtml = (changesList ?? []).map((c: string) =>
+          `<li style="padding:4px 0;font-size:13px;color:#333">${c}</li>`
+        ).join('')
+
+        const linesHtml = (finalLines ?? []).map((l: any) => `
+          <tr>
+            <td style="padding:8px 16px;font-size:13px;color:#333">${l.product_name} · ${l.size}</td>
+            <td style="padding:8px 16px;font-size:13px;color:#333;text-align:center">${l.qty}</td>
+            ${!isAthlete ? `<td style="padding:8px 16px;font-size:13px;color:#333;text-align:right">${symbol}${(l.line_total ?? 0).toFixed(2)}</td>` : ''}
+          </tr>`).join('')
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">
+<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+<div style="background:#000;padding:20px 32px"></div>
+<div style="padding:32px">
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111">Your order has been updated</h1>
+<p style="margin:0 0 20px;color:#555;font-size:14px">Hi ${customerName}, your order (Ref: <strong>${ref}</strong>) was modified by our team.</p>
+<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:16px;margin-bottom:24px">
+<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#92400e">Changes made:</p>
+<ul style="margin:0;padding-left:16px">${changesHtml}</ul>
+</div>
+<p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#111">Updated order:</p>
+<table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+<thead><tr style="background:#f5f5f5">
+<th style="padding:8px 16px;font-size:12px;text-align:left;color:#666;text-transform:uppercase">Product</th>
+<th style="padding:8px 16px;font-size:12px;text-align:center;color:#666;text-transform:uppercase">Qty</th>
+${!isAthlete ? '<th style="padding:8px 16px;font-size:12px;text-align:right;color:#666;text-transform:uppercase">Total</th>' : ''}
+</tr></thead>
+<tbody>${linesHtml}</tbody>
+${!isAthlete ? `<tfoot><tr><td colspan="2" style="padding:12px 16px;font-size:14px;font-weight:700;text-align:right;border-top:2px solid #eee">Subtotal</td><td style="padding:12px 16px;font-size:14px;font-weight:700;text-align:right;border-top:2px solid #eee">${symbol}${netTotal.toFixed(2)}</td></tr></tfoot>` : ''}
+</table>
+<div style="border-top:1px solid #eee;padding-top:20px;font-size:12px;color:#aaa;text-align:center">
+Balling Hockey · Wholesale Portal<br>
+Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@ballinghockey.com</a>
+</div></div></div></body></html>`
+
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL ?? 'noreply@ballinghockey.com',
+            to: [customerEmail],
+            subject: `Your order has been updated · Ref ${ref}`,
+            html,
+          }),
+        })
+      }
+    }
+
+    return NextResponse.json({ ok: true })
   }
 
   if (action === 'add_line') {
