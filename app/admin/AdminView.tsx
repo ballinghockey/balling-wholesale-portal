@@ -48,8 +48,8 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function OrderCard({ orderId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete, loyaltyCreditApplied }: {
-  orderId: string; orderDate: string; status: string; title: string; subtitle: string
+function OrderCard({ orderId, customerId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete, loyaltyCreditApplied }: {
+  orderId: string; customerId: string; orderDate: string; status: string; title: string; subtitle: string
   currency?: string; total?: number; lines: OrderLine[]
   shippingAddress?: Record<string, string> | null; isAthlete: boolean
   loyaltyCreditApplied?: number
@@ -173,6 +173,7 @@ function OrderCard({ orderId, orderDate, status, title, subtitle, currency, tota
       {editingOrder && (
         <OrderEditor
           orderId={orderId}
+          customerId={customerId}
           initialLines={currentLines}
           currency={currency ?? 'GBP'}
           onClose={() => setEditingOrder(false)}
@@ -965,7 +966,7 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
           {wholesaleOrders.length === 0
             ? <p className="text-sm text-neutral-400 text-center py-12">No wholesale orders yet.</p>
             : wholesaleOrders.map((order) => (
-              <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
+              <OrderCard key={order.order_id} orderId={order.order_id} customerId={order.customer_id} orderDate={order.order_date}
                 status={order.status} title={order.customerName} subtitle={order.customerEmail}
                 currency={order.currency} total={order.net_total} lines={order.order_lines} isAthlete={false}
                 loyaltyCreditApplied={order.loyalty_credit_applied} />
@@ -978,7 +979,7 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
           {athleteOrders.length === 0
             ? <p className="text-sm text-neutral-400 text-center py-12">No athlete requests yet.</p>
             : athleteOrders.map((order) => (
-              <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
+              <OrderCard key={order.order_id} orderId={order.order_id} customerId={order.customer_id} orderDate={order.order_date}
                 status={order.status} title={order.athleteName} subtitle={order.athleteEmail}
                 lines={order.order_lines} shippingAddress={order.shipping_address} isAthlete={true} />
             ))}
