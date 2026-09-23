@@ -50,10 +50,18 @@ export default async function CatalogPage() {
       usedCredits[cat] = (usedCredits[cat] ?? 0) + row.qty
     }
 
+    // Fetch original credits
+    const { data: originalCreditsData } = await supabase
+      .from('athlete_credits_original')
+      .select('*')
+      .eq('athlete_id', athlete.athlete_id)
+      .maybeSingle()
+
     return (
       <AthleteCatalogView
         groups={groups}
         credits={credits ?? { sticks: 0, bags: 0, accessories: 0, apparel: 0, shoes: 0, padel: 0 }}
+        originalCredits={originalCreditsData ?? undefined}
         usedCredits={usedCredits}
         athleteId={athlete.athlete_id}
         athleteName={athlete.athlete_name}
