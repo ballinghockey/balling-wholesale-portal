@@ -107,15 +107,33 @@ export async function POST(req: NextRequest) {
       .eq('customer_id', order.customer_id)
       .maybeSingle()
 
+    const { data: loyaltyRule } = await serviceClient
+      .from('loyalty_rules')
+      .select('spend_threshold, credit_amount')
+      .eq('customer_id', order.customer_id)
+      .eq('active', true)
+      .maybeSingle()
+
     if (loyalty) {
       const loyaltyCreditUsed = order.loyalty_credit_applied ?? 0
       const actualSpent = Math.max(0, order.net_total - loyaltyCreditUsed)
 
       // 1. Reverse total_spent (only what was actually paid, not credit used)
-      const newTotalSpent = Math.max(0, (loyalty.total_spent ?? 0) - (order.status === 'confirmed' ? actualSpent : 0))
+      const previousSpent = loyalty.total_spent ?? 0
+      const newTotalSpent = Math.max(0, previousSpent - (order.status === 'confirmed' ? actualSpent : 0))
 
-      // 2. If loyalty credit was used on this order, return it to balance
-      const newBalance = (loyalty.credit_balance ?? 0) + loyaltyCreditUsed
+      // 2. Recalculate earned credits based on new total_spent
+      let newBalance = (loyalty.credit_balance ?? 0) + loyaltyCreditUsed
+
+      if (loyaltyRule) {
+        const previousCycles = Math.floor(previousSpent / loyaltyRule.spend_threshold)
+        const newCycles = Math.floor(newTotalSpent / loyaltyRule.spend_threshold)
+        const lostCredits = (previousCycles - newCycles) * loyaltyRule.credit_amount
+        // Remove credits that were earned but no longer valid
+        if (lostCredits > 0) {
+          newBalance = Math.max(0, newBalance - lostCredits)
+        }
+      }
 
       await serviceClient.from('customer_loyalty').update({
         total_spent: newTotalSpent,
