@@ -33,8 +33,9 @@ function buildCustomerEmailHtml(params: {
   subtotal: number
   vatLabel: string
   orderDate: string
+  creditApplied?: number
 }) {
-  const { customerName, orderId, items, currency, subtotal, vatLabel, orderDate } = params
+  const { customerName, orderId, items, currency, subtotal, vatLabel, orderDate, creditApplied } = params
   const symbol = currency === 'GBP' ? '£' : '€'
 
   const rows = items.map((item) => {
@@ -90,6 +91,10 @@ function buildCustomerEmailHtml(params: {
             <td colspan="3" style="padding:12px 8px;font-size:14px;text-align:right;font-weight:600;color:#111">Subtotal</td>
             <td style="padding:12px 8px;font-size:14px;text-align:right;font-weight:700;color:#111">${symbol}${subtotal.toFixed(2)}</td>
           </tr>
+          ${creditApplied && creditApplied > 0 ? `<tr>
+            <td colspan="3" style="padding:4px 8px;font-size:13px;text-align:right;color:#059669;font-weight:600">🎁 Loyalty credit</td>
+            <td style="padding:4px 8px;font-size:13px;text-align:right;color:#059669;font-weight:600">-${symbol}${Number(creditApplied).toFixed(2)}</td>
+          </tr>` : ''}
           <tr>
             <td colspan="4" style="padding:0 8px 12px;font-size:12px;text-align:right;color:#888">${vatLabel}</td>
           </tr>
@@ -181,12 +186,13 @@ function buildBallingEmailHtml(params: {
   const symbol = currency === 'GBP' ? '£' : '€'
 
   const rows = items.map((item) => {
-    const discountInfo = !isAthlete && (item.customerDiscountPct > 0 || item.promoDiscountPct > 0)
-      ? `<div style="font-size:11px;margin-top:2px">${item.customerDiscountPct > 0 ? `<span style="color:#059669">${item.customerDiscountPct}% discount</span>` : ''}${item.customerDiscountPct > 0 && item.promoDiscountPct > 0 ? ' · ' : ''}${item.promoDiscountPct > 0 ? `<span style="color:#2563eb">+${item.promoDiscountPct}% promo</span>` : ''}</div>`
-      : ''
+    const discountLines = !isAthlete ? [
+      item.customerDiscountPct > 0 ? `<span style="font-size:11px;color:#059669;display:block">${item.customerDiscountPct}% discount</span>` : '',
+      item.promoDiscountPct > 0 ? `<span style="font-size:11px;color:#2563eb;display:block">+ ${item.promoDiscountPct}% promo</span>` : '',
+    ].join('') : ''
     return `
     <tr style="border-bottom:1px solid #f0f0f0">
-      <td style="padding:8px;font-size:13px">${item.productName} · ${item.size}${discountInfo}</td>
+      <td style="padding:8px;font-size:13px">${item.productName} · ${item.size}${discountLines ? `<div style="margin-top:3px">${discountLines}</div>` : ''}</td>
       <td style="padding:8px;font-size:13px;color:#888">${item.sku}</td>
       <td style="padding:8px;font-size:13px;text-align:center">${item.qty}</td>
       ${!isAthlete ? `
@@ -533,7 +539,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate })
+  const customerEmailHtml = buildCustomerEmailHtml({ customerName, orderId, items, currency, subtotal: netTotal, vatLabel, orderDate, creditApplied })
   const ballingEmailHtml = buildBallingEmailHtml({ customerName, customerEmail: customer?.email_login ?? '', orderId, items, currency, subtotal: netTotal, orderDate, isAthlete: false, creditApplied: creditApplied ?? 0 })
   const creditSymbol = currency === 'GBP' ? '£' : '€'
   const creditNote = creditApplied && creditApplied > 0
