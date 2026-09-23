@@ -37,7 +37,13 @@ function buildCustomerEmailHtml(params: {
   const { customerName, orderId, items, currency, subtotal, vatLabel, orderDate } = params
   const symbol = currency === 'GBP' ? '£' : '€'
 
-  const rows = items.map((item) => `
+  const rows = items.map((item) => {
+    const hasDiscount = item.customerDiscountPct > 0 || item.promoDiscountPct > 0
+    const discountLines = [
+      item.customerDiscountPct > 0 ? `<span style="font-size:11px;color:#059669;display:block">${item.customerDiscountPct}% discount</span>` : '',
+      item.promoDiscountPct > 0 ? `<span style="font-size:11px;color:#2563eb;display:block">+ ${item.promoDiscountPct}% promo</span>` : '',
+    ].join('')
+    return `
     <tr style="border-bottom:1px solid #f0f0f0">
       <td style="padding:10px 8px;font-size:13px">
         <strong>${item.productName}</strong><br>
@@ -45,13 +51,13 @@ function buildCustomerEmailHtml(params: {
       </td>
       <td style="padding:10px 8px;font-size:13px;text-align:center">${item.qty}</td>
       <td style="padding:10px 8px;font-size:13px;text-align:right;color:#888">
-        ${item.customerDiscountPct > 0 ? `<s>${formatCurrency(item.listPrice, currency)}</s><br>` : ''}
+        ${hasDiscount ? `<s>${formatCurrency(item.listPrice, currency)}</s><br>` : ''}
         ${item.displayFinalPrice}
-        ${item.customerDiscountPct > 0 ? `<br><span style="font-size:11px;color:#059669">-${item.customerDiscountPct}% applied</span>` : ''}
+        ${discountLines ? `<br>${discountLines}` : ''}
       </td>
       <td style="padding:10px 8px;font-size:13px;text-align:right;font-weight:600">${formatCurrency(item.lineTotal, currency)}</td>
     </tr>
-  `).join('')
+  `}).join('')
 
   return `<!DOCTYPE html>
 <html>
