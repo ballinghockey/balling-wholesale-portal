@@ -176,7 +176,7 @@ function buildBallingEmailHtml(params: {
 
   const rows = items.map((item) => {
     const discountInfo = !isAthlete && (item.customerDiscountPct > 0 || item.promoDiscountPct > 0)
-      ? `<div style="font-size:11px;margin-top:2px">${item.customerDiscountPct > 0 ? `<span style="color:#059669">${item.customerDiscountPct}% commercial</span>` : ''}${item.customerDiscountPct > 0 && item.promoDiscountPct > 0 ? ' · ' : ''}${item.promoDiscountPct > 0 ? `<span style="color:#2563eb">+${item.promoDiscountPct}% promo</span>` : ''}</div>`
+      ? `<div style="font-size:11px;margin-top:2px">${item.customerDiscountPct > 0 ? `<span style="color:#059669">${item.customerDiscountPct}% discount</span>` : ''}${item.customerDiscountPct > 0 && item.promoDiscountPct > 0 ? ' · ' : ''}${item.promoDiscountPct > 0 ? `<span style="color:#2563eb">+${item.promoDiscountPct}% promo</span>` : ''}</div>`
       : ''
     return `
     <tr style="border-bottom:1px solid #f0f0f0">
