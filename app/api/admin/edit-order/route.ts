@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     // Fetch order data inside the notify block
     const { data: orderData, error: orderErr } = await serviceClient
       .from('order_requests')
-      .select('customer_id, currency, status, vat_rule')
+      .select('customer_id, currency, status')
       .eq('order_id', orderId)
       .maybeSingle()
 
@@ -246,7 +246,7 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
   // Send email notification to customer on every edit
   const { data: orderData } = await serviceClient
     .from('order_requests')
-    .select('customer_id, currency, status, vat_rule')
+    .select('customer_id, currency, status')
     .eq('order_id', orderId)
     .maybeSingle()
 
