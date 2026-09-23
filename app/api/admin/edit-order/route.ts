@@ -42,43 +42,7 @@ export async function POST(req: NextRequest) {
       .update({ qty, line_total: qty * unitPrice })
       .eq('id', lineId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-    // Adjust athlete credits based on qty difference
-    if (oldLine) {
-      const qtyDiff = qty - oldLine.qty // positive = added more, negative = removed
-      if (qtyDiff !== 0) {
-        const { data: qtyOrder } = await serviceClient
-          .from('order_requests').select('customer_id').eq('order_id', oldLine.order_id).single()
-
-        if (qtyOrder) {
-          const { data: qtyAthlete } = await serviceClient
-            .from('athletes').select('athlete_id').eq('athlete_id', qtyOrder.customer_id).maybeSingle()
-
-          if (qtyAthlete) {
-            const { data: qtyProduct } = await serviceClient
-              .from('products').select('category').eq('sku', oldLine.sku).maybeSingle()
-
-            if (qtyProduct) {
-              const CREDIT_MAP: Record<string, string> = {
-                Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
-                Apparel: 'accessories', Shoes: 'shoes', Padel: 'padel',
-              }
-              const creditField = CREDIT_MAP[qtyProduct.category]
-              if (creditField) {
-                const { data: qtyCredits } = await serviceClient
-                  .from('athlete_credits').select(creditField).eq('athlete_id', qtyAthlete.athlete_id).single()
-
-                if (qtyCredits) {
-                  const currentVal = (qtyCredits as any)[creditField] ?? 0
-                  // qtyDiff > 0 means more units added = deduct more credits
-                  // qtyDiff < 0 means units removed = return credits
-                  const newValue = Math.max(0, currentVal - qtyDiff)
-                  console.log('[update_qty] creditField:', creditField, 'current:', currentVal, 'diff:', qtyDiff, 'new:', newValue)
-                  await serviceClient
-                    .from('athlete_credits')
-                    .update({ [creditField]: newValue })
-                    .eq('athlete_id', qtyAthlete.athlete_id)
-                }
+  }
               }
             }
           }
