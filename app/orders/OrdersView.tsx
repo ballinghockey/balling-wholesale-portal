@@ -202,25 +202,35 @@ export default function OrdersView({
                             </td>
                           </tr>
                         )}
-                        {order.vat_total > 0 && (
-                          <tr>
-                            <td colSpan={3} className="pt-1 text-right text-xs text-neutral-400">
-                              VAT
-                            </td>
-                            <td className="pt-1 text-right text-xs text-neutral-400">
-                              {symbol}{order.vat_total.toFixed(2)}
-                            </td>
-                          </tr>
-                        )}
                         {!isAthlete && (
-                          <tr className="border-t border-neutral-200">
-                            <td colSpan={3} className="pt-3 text-right text-sm font-bold text-neutral-900">
-                              Total to pay
-                            </td>
-                            <td className="pt-3 text-right text-sm font-bold text-neutral-900">
-                              {symbol}{order.grand_total.toFixed(2)}
-                            </td>
-                          </tr>
+                          <>
+                            <tr className="border-t border-neutral-100">
+                              <td colSpan={3} className="pt-2 text-right text-xs text-neutral-500">
+                                Net total
+                              </td>
+                              <td className="pt-2 text-right text-xs text-neutral-500">
+                                {symbol}{Math.max(0, order.net_total - (order.loyalty_credit_applied ?? 0)).toFixed(2)}
+                              </td>
+                            </tr>
+                            {order.vat_total > 0 && (
+                              <tr>
+                                <td colSpan={3} className="pt-1 text-right text-xs text-neutral-400">
+                                  VAT
+                                </td>
+                                <td className="pt-1 text-right text-xs text-neutral-400">
+                                  {symbol}{order.vat_total.toFixed(2)}
+                                </td>
+                              </tr>
+                            )}
+                            <tr className="border-t border-neutral-200">
+                              <td colSpan={3} className="pt-3 text-right text-sm font-bold text-neutral-900">
+                                Total to pay
+                              </td>
+                              <td className="pt-3 text-right text-sm font-bold text-neutral-900">
+                                {symbol}{order.grand_total.toFixed(2)}
+                              </td>
+                            </tr>
+                          </>
                         )}
                       </tfoot>
                     </table>
