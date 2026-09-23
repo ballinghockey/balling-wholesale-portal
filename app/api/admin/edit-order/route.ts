@@ -243,7 +243,13 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
     })
     .eq('order_id', orderId)
 
-  // Send email notification to customer
+  // Send email notification to customer on every edit
+  const { data: orderData } = await serviceClient
+    .from('order_requests')
+    .select('customer_id, currency, status, vat_rule')
+    .eq('order_id', orderId)
+    .maybeSingle()
+
   if (orderData && process.env.RESEND_API_KEY) {
     const symbol = orderData.currency === 'GBP' ? '£' : '€'
     const ref = orderId.slice(0, 8).toUpperCase()
