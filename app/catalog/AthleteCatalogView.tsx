@@ -23,12 +23,14 @@ const CREDIT_CATEGORY_MAP: Record<string, keyof AthleteCredits> = {
 export default function AthleteCatalogView({
   groups,
   credits,
+  originalCredits,
   usedCredits: initialUsedCredits,
   athleteId,
   athleteName,
 }: {
   groups: ProductGroupWithVariants[]
   credits: AthleteCredits
+  originalCredits?: AthleteCredits
   usedCredits: Record<string, number>
   athleteId: string
   athleteName: string
@@ -71,6 +73,8 @@ export default function AthleteCatalogView({
   // Credit calculation for active category
   const creditKey = CREDIT_CATEGORY_MAP[activeCategory] ?? 'accessories'
   const totalCredit = credits[creditKey] ?? 0
+  const originalTotal = (originalCredits?.[creditKey as keyof AthleteCredits] ?? totalCredit) as number
+  const originalTotal = originalCredits?.[creditKey] ?? totalCredit
   const usedInCategory = usedCredits[activeCategory.toLowerCase()] ?? 0
   const remainingCredit = totalCredit - usedInCategory
 
@@ -316,7 +320,7 @@ export default function AthleteCatalogView({
               {cat}
               {total > 0 && (
                 <span className={`ml-1.5 text-xs font-normal ${remaining === 0 ? 'text-red-400' : 'text-neutral-400'}`}>
-                  ({remaining}/{total})
+                  ({remaining}/{originalCredits ? (originalCredits[ck] ?? total) : total})
                 </span>
               )}
             </button>
@@ -335,7 +339,7 @@ export default function AthleteCatalogView({
         }`}>
           <div className="flex-1">
             <span className="font-medium">{activeCategory} credit: </span>
-            {remainingCredit} of {totalCredit} remaining
+            {remainingCredit} of {originalTotal} remaining
           </div>
           <div className="flex gap-1">
             {Array.from({ length: totalCredit }).map((_, i) => (
