@@ -216,7 +216,7 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
 
   const netTotal = (allLines ?? []).reduce((sum, l) => sum + (l.line_total ?? 0), 0)
 
-  // Recalculate VAT based on the order's vat_rule
+  // Recalculate VAT - get vat_rule from customer
   const VAT_RATES: Record<string, number> = {
     UK_STANDARD: 0.20,
     ES_STANDARD: 0.21,
@@ -224,13 +224,24 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
     CLUB_INCLUDED: 0,
   }
 
-  const { data: orderForVat } = await serviceClient
+  // Get customer_id from order, then get vat_rule from customer
+  const { data: orderInfo } = await serviceClient
     .from('order_requests')
-    .select('vat_rule')
+    .select('customer_id')
     .eq('order_id', orderId)
     .single()
 
-  const vatRate = VAT_RATES[orderForVat?.vat_rule ?? 'EU_EXEMPT'] ?? 0
+  let vatRule = 'EU_EXEMPT'
+  if (orderInfo?.customer_id) {
+    const { data: customerVat } = await serviceClient
+      .from('customers')
+      .select('vat_rule')
+      .eq('customer_id', orderInfo.customer_id)
+      .maybeSingle()
+    if (customerVat?.vat_rule) vatRule = customerVat.vat_rule
+  }
+
+  const vatRate = VAT_RATES[vatRule] ?? 0
   const vatTotal = Math.round(netTotal * vatRate * 100) / 100
   const grandTotal = Math.round((netTotal + vatTotal) * 100) / 100
 
