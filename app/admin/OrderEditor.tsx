@@ -24,6 +24,7 @@ type Product = {
   finalPrice?: number
   customerDiscountPct?: number
   productPromoDiscountPct?: number
+  stock?: number
 }
 
 export default function OrderEditor({
@@ -225,6 +226,7 @@ export default function OrderEditor({
                         <span className="text-neutral-900 font-medium">{symbol}{(product.finalPrice ?? price).toFixed(2)}</span>
                         {product.customerDiscountPct ? <span className="text-emerald-600 ml-1">{product.customerDiscountPct}% off</span> : null}
                         {product.productPromoDiscountPct ? <span className="text-blue-600 ml-1">+Promo {product.productPromoDiscountPct}%</span> : null}
+                        {product.stock !== undefined && <span className="text-neutral-400 ml-2">Stock: {product.stock}</span>}
                       </p>
                       </div>
                       <input
