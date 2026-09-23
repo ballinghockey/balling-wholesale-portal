@@ -245,6 +245,13 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
   const vatTotal = Math.round(netTotal * vatRate * 100) / 100
   const grandTotal = Math.round((netTotal + vatTotal) * 100) / 100
 
+  // Get current order totals before updating
+  const { data: currentOrder } = await serviceClient
+    .from('order_requests')
+    .select('net_total, status, customer_id, loyalty_credit_applied')
+    .eq('order_id', orderId)
+    .single()
+
   await serviceClient
     .from('order_requests')
     .update({
@@ -253,6 +260,46 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
       grand_total: grandTotal,
     })
     .eq('order_id', orderId)
+
+  // If order is confirmed, adjust loyalty based on new total
+  if (currentOrder?.status === 'confirmed' && currentOrder.customer_id) {
+    const { data: loyalty } = await serviceClient
+      .from('customer_loyalty')
+      .select('total_spent, credit_balance')
+      .eq('customer_id', currentOrder.customer_id)
+      .maybeSingle()
+
+    const { data: loyaltyRule } = await serviceClient
+      .from('loyalty_rules')
+      .select('spend_threshold, credit_amount')
+      .eq('customer_id', currentOrder.customer_id)
+      .eq('active', true)
+      .maybeSingle()
+
+    if (loyalty && loyaltyRule) {
+      const loyaltyCreditUsed = currentOrder.loyalty_credit_applied ?? 0
+      const oldActualSpent = Math.max(0, (currentOrder.net_total ?? 0) - loyaltyCreditUsed)
+      const newActualSpent = Math.max(0, netTotal - loyaltyCreditUsed)
+      const spentDiff = newActualSpent - oldActualSpent
+
+      const currentTotalSpent = loyalty.total_spent ?? 0
+      const newTotalSpent = Math.max(0, currentTotalSpent + spentDiff)
+
+      // Recalculate earned cycles
+      const previousCycles = Math.floor(currentTotalSpent / loyaltyRule.spend_threshold)
+      const newCycles = Math.floor(newTotalSpent / loyaltyRule.spend_threshold)
+      const cycleDiff = newCycles - previousCycles
+      const creditAdjustment = cycleDiff * loyaltyRule.credit_amount
+
+      const newBalance = Math.max(0, (loyalty.credit_balance ?? 0) + creditAdjustment)
+
+      await serviceClient.from('customer_loyalty').update({
+        total_spent: Math.round(newTotalSpent * 100) / 100,
+        credit_balance: Math.round(newBalance * 100) / 100,
+        updated_at: new Date().toISOString(),
+      }).eq('customer_id', currentOrder.customer_id)
+    }
+  }
 
 
   return NextResponse.json({ ok: true })
