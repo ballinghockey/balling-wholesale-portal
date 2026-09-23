@@ -97,16 +97,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Handle customer notification - send ONE email with all changes
-  // Fetch order data early for notify action
-  const { data: orderData } = await serviceClient
-    .from('order_requests')
-    .select('customer_id, currency, status, vat_rule')
-    .eq('order_id', orderId)
-    .maybeSingle()
-
   if (action === 'notify_customer') {
     const changesList = body.changes ?? []
-    console.log('[notify] orderId:', orderId, 'changes:', changesList.length, 'orderData:', !!orderData, 'resend:', !!process.env.RESEND_API_KEY)
+    
+    // Fetch order data inside the notify block
+    const { data: orderData, error: orderErr } = await serviceClient
+      .from('order_requests')
+      .select('customer_id, currency, status, vat_rule')
+      .eq('order_id', orderId)
+      .maybeSingle()
+
+    console.log('[notify] orderId:', orderId, 'changes:', changesList.length, 'orderData:', JSON.stringify(orderData), 'orderErr:', orderErr?.message, 'resend:', !!process.env.RESEND_API_KEY)
 
     if (orderData && process.env.RESEND_API_KEY) {
       const symbol = orderData.currency === 'GBP' ? '£' : '€'
