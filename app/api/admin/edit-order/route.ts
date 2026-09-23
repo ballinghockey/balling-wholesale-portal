@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { action, orderId, lineId, sku, qty, productName, size, unitPrice } = body
+  console.log('[edit-order] action:', action, 'orderId:', orderId, 'sku:', sku, 'qty:', qty)
 
   const serviceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
