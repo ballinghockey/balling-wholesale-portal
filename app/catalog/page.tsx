@@ -50,18 +50,46 @@ export default async function CatalogPage() {
       usedCredits[cat] = (usedCredits[cat] ?? 0) + row.qty
     }
 
-    // Fetch original credits
-    const { data: originalCreditsData } = await supabase
-      .from('athlete_credits_original')
-      .select('*')
-      .eq('athlete_id', athlete.athlete_id)
-      .maybeSingle()
+    // Calculate total assigned credits = current + used in active orders
+    const { data: activeOrderLines } = await supabase
+      .from('order_lines')
+      .select('qty, sku, products(category)')
+      .in('order_id',
+        (await supabase
+          .from('order_requests')
+          .select('order_id')
+          .eq('customer_id', athlete.athlete_id)
+          .not('status', 'eq', 'cancelled')
+        ).data?.map((r: any) => r.order_id) ?? []
+      )
+
+    const CREDIT_MAP: Record<string, string> = {
+      Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
+      Apparel: 'apparel', Shoes: 'shoes', Padel: 'padel',
+    }
+
+    const usedByCategory: Record<string, number> = {}
+    for (const line of activeOrderLines ?? []) {
+      const cat = (line.products as any)?.category
+      const field = CREDIT_MAP[cat]
+      if (field) usedByCategory[field] = (usedByCategory[field] ?? 0) + line.qty
+    }
+
+    const currentCredits = credits ?? { sticks: 0, bags: 0, accessories: 0, apparel: 0, shoes: 0, padel: 0 }
+    const totalCredits = {
+      sticks: (currentCredits.sticks ?? 0) + (usedByCategory.sticks ?? 0),
+      bags: (currentCredits.bags ?? 0) + (usedByCategory.bags ?? 0),
+      accessories: (currentCredits.accessories ?? 0) + (usedByCategory.accessories ?? 0),
+      apparel: (currentCredits.apparel ?? 0) + (usedByCategory.apparel ?? 0),
+      shoes: (currentCredits.shoes ?? 0) + (usedByCategory.shoes ?? 0),
+      padel: (currentCredits.padel ?? 0) + (usedByCategory.padel ?? 0),
+    }
 
     return (
       <AthleteCatalogView
         groups={groups}
-        credits={credits ?? { sticks: 0, bags: 0, accessories: 0, apparel: 0, shoes: 0, padel: 0 }}
-        originalCredits={originalCreditsData ?? undefined}
+        credits={currentCredits}
+        originalCredits={totalCredits}
         usedCredits={usedCredits}
         athleteId={athlete.athlete_id}
         athleteName={athlete.athlete_name}
