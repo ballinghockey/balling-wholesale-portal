@@ -24,6 +24,7 @@ type Order = {
   grand_total: number
   vat_total: number
   status: string
+  loyalty_credit_applied?: number
   order_lines: OrderLine[]
 }
 
@@ -144,6 +145,12 @@ export default function OrdersView({
                           <th className="text-right pb-2 font-medium">Total</th>
                         </tr>
                       </thead>
+                      {order.loyalty_credit_applied && order.loyalty_credit_applied > 0 && (
+                          <div className="mb-2 px-1 py-1.5 bg-emerald-50 rounded-lg flex items-center justify-between">
+                            <span className="text-xs text-emerald-700 font-medium">🎁 Loyalty credit applied</span>
+                            <span className="text-xs text-emerald-700 font-semibold">-{symbol}{order.loyalty_credit_applied.toFixed(2)}</span>
+                          </div>
+                        )}
                       <tbody className="divide-y divide-neutral-100">
                         {order.order_lines.map((line) => (
                           <tr key={line.id}>
@@ -185,6 +192,16 @@ export default function OrdersView({
                           </td>
                         </tr>
                       )}
+                        {!isAthlete && order.loyalty_credit_applied && order.loyalty_credit_applied > 0 && (
+                          <tr>
+                            <td colSpan={3} className="pt-1 text-right text-xs text-emerald-600 font-medium">
+                              🎁 Loyalty credit
+                            </td>
+                            <td className="pt-1 text-right text-xs text-emerald-600 font-medium">
+                              -{symbol}{order.loyalty_credit_applied.toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
                         {order.vat_total > 0 && (
                           <tr>
                             <td colSpan={3} className="pt-1 text-right text-xs text-neutral-400">
