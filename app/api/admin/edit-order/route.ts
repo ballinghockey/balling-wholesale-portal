@@ -274,7 +274,9 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
               .single()
 
             if (addCredits) {
-              const newValue = Math.max(0, ((addCredits as any)[creditField] ?? 0) - qty)
+              const currentVal = (addCredits as any)[creditField] ?? 0
+              console.log('[add_line] creditField:', creditField, 'current:', currentVal, 'deducting:', qty)
+              const newValue = Math.max(0, currentVal - qty)
               await serviceClient
                 .from('athlete_credits')
                 .update({ [creditField]: newValue })
