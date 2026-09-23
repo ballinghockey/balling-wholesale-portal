@@ -160,6 +160,9 @@ export default function OrdersView({
                             <td className="py-2.5 text-center text-sm text-neutral-700">{line.qty}</td>
                             {!isAthlete && (
                               <td className="py-2.5 text-right text-sm text-neutral-700">
+                                {(line.customer_discount_pct > 0 || line.promo_discount_pct > 0) && line.list_price > line.final_unit_price && (
+                                  <span className="line-through text-neutral-400 text-xs block">{symbol}{line.list_price.toFixed(2)}</span>
+                                )}
                                 {symbol}{line.final_unit_price.toFixed(2)}
                               </td>
                             )}
