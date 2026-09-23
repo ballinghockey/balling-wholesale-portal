@@ -468,8 +468,10 @@ export async function POST(req: NextRequest) {
     sum + item.listPrice * (1 - item.customerDiscountPct / 100) * item.qty, 0)
   const promoDiscountTotal = items.reduce((sum: number, item: OrderItem) =>
     sum + item.listPrice * (1 - item.customerDiscountPct / 100) * (item.promoDiscountPct / 100) * item.qty, 0)
-  const vatTotal = netTotal * (vatPct / 100)
-  const grandTotal = netTotal + vatTotal
+  // VAT calculated on amount after loyalty credit deduction
+  const netAfterCredit = Math.max(0, netTotal - (creditApplied ?? 0))
+  const vatTotal = netAfterCredit * (vatPct / 100)
+  const grandTotal = netAfterCredit + vatTotal
 
   const { error: orderError } = await supabase
     .from('order_requests')
