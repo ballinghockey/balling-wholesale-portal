@@ -43,13 +43,6 @@ export async function POST(req: NextRequest) {
       .eq('id', lineId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
 
   if (action === 'delete_line') {
     const { data: lineData } = await serviceClient
