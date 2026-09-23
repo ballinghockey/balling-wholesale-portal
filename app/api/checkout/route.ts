@@ -174,9 +174,13 @@ function buildBallingEmailHtml(params: {
   const { customerName, customerEmail, orderId, items, currency, subtotal, orderDate, isAthlete, shippingAddress, creditApplied } = params
   const symbol = currency === 'GBP' ? '£' : '€'
 
-  const rows = items.map((item) => `
+  const rows = items.map((item) => {
+    const discountInfo = !isAthlete && (item.customerDiscountPct > 0 || item.promoDiscountPct > 0)
+      ? `<div style="font-size:11px;margin-top:2px">${item.customerDiscountPct > 0 ? `<span style="color:#059669">${item.customerDiscountPct}% commercial</span>` : ''}${item.customerDiscountPct > 0 && item.promoDiscountPct > 0 ? ' · ' : ''}${item.promoDiscountPct > 0 ? `<span style="color:#2563eb">+${item.promoDiscountPct}% promo</span>` : ''}</div>`
+      : ''
+    return `
     <tr style="border-bottom:1px solid #f0f0f0">
-      <td style="padding:8px;font-size:13px">${item.productName} · ${item.size}</td>
+      <td style="padding:8px;font-size:13px">${item.productName} · ${item.size}${discountInfo}</td>
       <td style="padding:8px;font-size:13px;color:#888">${item.sku}</td>
       <td style="padding:8px;font-size:13px;text-align:center">${item.qty}</td>
       ${!isAthlete ? `
@@ -184,7 +188,7 @@ function buildBallingEmailHtml(params: {
       <td style="padding:8px;font-size:13px;text-align:right;font-weight:600">${formatCurrency(item.lineTotal, currency)}</td>
       ` : ''}
     </tr>
-  `).join('')
+  `}).join('')
 
   return `<!DOCTYPE html>
 <html>
