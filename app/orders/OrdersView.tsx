@@ -151,9 +151,10 @@ export default function OrdersView({
                               <p className="text-sm font-medium text-neutral-900">{line.product_name}</p>
                               <p className="text-xs text-neutral-400">{line.size} · SKU: {line.sku}</p>
                               {!isAthlete && line.customer_discount_pct > 0 && (
-                                <p className="text-xs text-emerald-600">
-                                  -{line.customer_discount_pct}% applied
-                                </p>
+                                <p className="text-xs text-emerald-600">{line.customer_discount_pct}% discount</p>
+                              )}
+                            {!isAthlete && line.promo_discount_pct > 0 && (
+                                <p className="text-xs text-blue-600">+ {line.promo_discount_pct}% promo</p>
                               )}
                             </td>
                             <td className="py-2.5 text-center text-sm text-neutral-700">{line.qty}</td>
