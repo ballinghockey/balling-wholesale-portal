@@ -246,3 +246,99 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
 
   return NextResponse.json({ ok: true })
 }
+
+// Search/browse products
+export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
+
+  if (!authData?.user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const { data: admin } = await supabase
+    .from('customers')
+    .select('is_admin')
+    .eq('auth_user_id', authData.user.id)
+    .single()
+
+  if (!admin?.is_admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const url = new URL(req.url)
+  const q = url.searchParams.get('q') ?? ''
+  const customerId = url.searchParams.get('customerId') ?? ''
+  const currency = url.searchParams.get('currency') ?? 'GBP'
+
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  let query = serviceClient
+    .from('products')
+    .select('sku, product_name, product_group, size, base_price_gbp, base_price_eur, category, subcategory')
+    .eq('active', true)
+    .order('category')
+    .order('product_name')
+
+  if (q.length >= 2) {
+    query = query.or(`sku.ilike.%${q}%,product_name.ilike.%${q}%`)
+  }
+
+  const { data: products } = await query.limit(500)
+
+  // Fetch customer discounts and product promos if customerId provided
+  let discounts: Record<string, number> = {}
+  let productPromos: { product_group: string; discount_pct: number; start_date: string; end_date: string }[] = []
+
+  if (customerId) {
+    const { data: discountData } = await serviceClient
+      .from('customer_discounts')
+      .select('sticks_pct, bags_pct, accessories_pct, apparel_pct, shoes_pct')
+      .eq('customer_id', customerId)
+      .maybeSingle()
+
+    if (discountData) {
+      discounts = {
+        Sticks: discountData.sticks_pct ?? 0,
+        Bags: discountData.bags_pct ?? 0,
+        Accessories: discountData.accessories_pct ?? 0,
+        Apparel: discountData.apparel_pct ?? 0,
+        Shoes: discountData.shoes_pct ?? 0,
+        Padel: discountData.apparel_pct ?? 0,
+      }
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+    const { data: promoData } = await serviceClient
+      .from('product_promotions')
+      .select('product_group, discount_pct, start_date, end_date')
+      .eq('customer_id', customerId)
+      .eq('active', true)
+      .lte('start_date', today)
+      .gte('end_date', today)
+
+    productPromos = promoData ?? []
+  }
+
+  // Apply discounts to products
+  const today = new Date().toISOString().slice(0, 10)
+  const productsWithPrices = (products ?? []).map((p: any) => {
+    const basePrice = currency === 'GBP' ? p.base_price_gbp : p.base_price_eur
+    const customerDiscountPct = discounts[p.category] ?? 0
+    const promo = productPromos.find((pp: any) => pp.product_group === p.product_group)
+    const productPromoDiscountPct = promo?.discount_pct ?? 0
+    const totalDiscount = Math.min(customerDiscountPct + productPromoDiscountPct, 100)
+    const finalPrice = Math.round(basePrice * (1 - totalDiscount / 100) * 100) / 100
+    return {
+      ...p,
+      finalPrice,
+      customerDiscountPct,
+      productPromoDiscountPct,
+    }
+  })
+
+  return NextResponse.json({ products: productsWithPrices })
+}
