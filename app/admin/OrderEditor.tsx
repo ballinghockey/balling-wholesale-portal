@@ -15,20 +15,27 @@ type OrderLine = {
 type Product = {
   sku: string
   product_name: string
+  product_group: string
   size: string
   base_price_gbp: number
   base_price_eur: number
   category: string
+  subcategory?: string
+  finalPrice?: number
+  customerDiscountPct?: number
+  productPromoDiscountPct?: number
 }
 
 export default function OrderEditor({
   orderId,
+  customerId,
   initialLines,
   currency,
   onClose,
   onSaved,
 }: {
   orderId: string
+  customerId: string
   initialLines: OrderLine[]
   currency: string
   onClose: () => void
@@ -48,7 +55,7 @@ export default function OrderEditor({
   const search = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return }
     setSearching(true)
-    const res = await fetch(`/api/admin/edit-order?q=${encodeURIComponent(q)}`)
+    const res = await fetch(`/api/admin/edit-order?q=${encodeURIComponent(q)}&customerId=${customerId}&currency=${currency}`)
     const data = await res.json()
     setSearchResults(data.products ?? [])
     setSearching(false)
@@ -104,8 +111,9 @@ export default function OrderEditor({
 
   async function addLine(product: Product) {
     const qty = addQty[product.sku] ?? 1
-    const unitPrice = currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
+    const unitPrice = product.finalPrice ?? (currency === 'GBP' ? product.base_price_gbp : product.base_price_eur)
     setSaving(`add-${product.sku}`)
+    const basePrice = currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
     const res = await fetch('/api/admin/edit-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -117,6 +125,9 @@ export default function OrderEditor({
         size: product.size,
         qty,
         unitPrice,
+        listPrice: basePrice,
+        customerDiscountPct: product.customerDiscountPct ?? 0,
+        productPromoDiscountPct: product.productPromoDiscountPct ?? 0,
       }),
     })
     if (res.ok) {
@@ -209,7 +220,12 @@ export default function OrderEditor({
                     <div key={product.sku} className="flex items-center gap-3 px-3 py-2.5 hover:bg-neutral-50 border-b border-neutral-100 last:border-0">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-neutral-900 truncate">{product.product_name}</p>
-                        <p className="text-xs text-neutral-400">{product.size} · {product.sku} · {symbol}{price.toFixed(2)}</p>
+                        <p className="text-xs text-neutral-400">{product.size} · {product.sku}</p>
+                      <p className="text-xs">
+                        <span className="text-neutral-900 font-medium">{symbol}{(product.finalPrice ?? price).toFixed(2)}</span>
+                        {product.customerDiscountPct ? <span className="text-emerald-600 ml-1">{product.customerDiscountPct}% off</span> : null}
+                        {product.productPromoDiscountPct ? <span className="text-blue-600 ml-1">+Promo {product.productPromoDiscountPct}%</span> : null}
+                      </p>
                       </div>
                       <input
                         type="number"
