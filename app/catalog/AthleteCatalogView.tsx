@@ -317,7 +317,7 @@ export default function AthleteCatalogView({
               }`}
             >
               {cat}
-              {total > 0 && (
+              {(originalCredits ? (originalCredits[ck] ?? total) : total) > 0 && (
                 <span className={`ml-1.5 text-xs font-normal ${remaining === 0 ? 'text-red-400' : 'text-neutral-400'}`}>
                   ({remaining}/{originalCredits ? (originalCredits[ck] ?? total) : total})
                 </span>
@@ -341,7 +341,7 @@ export default function AthleteCatalogView({
             {remainingCredit} of {originalTotal} remaining
           </div>
           <div className="flex gap-1">
-            {Array.from({ length: totalCredit }).map((_, i) => (
+            {Array.from({ length: originalTotal }).map((_, i) => (
               <div
                 key={i}
                 className={`w-4 h-4 rounded-sm ${
