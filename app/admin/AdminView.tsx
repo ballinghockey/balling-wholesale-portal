@@ -10,6 +10,7 @@ type ProductPromotion = {
 
 type OrderLine = {
   id: string; sku: string; product_name: string; size: string; qty: number
+  list_price?: number; customer_discount_pct?: number; promo_discount_pct?: number
   final_unit_price: number; line_total: number
 }
 type WholesaleOrder = {
@@ -48,8 +49,8 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function OrderCard({ orderId, customerId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete, loyaltyCreditApplied }: {
-  orderId: string; customerId: string; orderDate: string; status: string; title: string; subtitle: string
+function OrderCard({ orderId, orderDate, status, title, subtitle, currency, total, lines, shippingAddress, isAthlete, loyaltyCreditApplied }: {
+  orderId: string; orderDate: string; status: string; title: string; subtitle: string
   currency?: string; total?: number; lines: OrderLine[]
   shippingAddress?: Record<string, string> | null; isAthlete: boolean
   loyaltyCreditApplied?: number
@@ -134,9 +135,22 @@ function OrderCard({ orderId, customerId, orderDate, status, title, subtitle, cu
                   <td className="py-2 pr-4">
                     <p className="text-sm font-medium text-neutral-900">{line.product_name}</p>
                     <p className="text-xs text-neutral-400">{line.size} · {line.sku}</p>
+                    {!isAthlete && line.customer_discount_pct && line.customer_discount_pct > 0 && (
+                      <p className="text-xs text-emerald-600">{line.customer_discount_pct}% discount</p>
+                    )}
+                    {!isAthlete && line.promo_discount_pct && line.promo_discount_pct > 0 && (
+                      <p className="text-xs text-blue-600">+ {line.promo_discount_pct}% promo</p>
+                    )}
                   </td>
                   <td className="py-2 text-center text-sm text-neutral-700">{line.qty}</td>
-                  {!isAthlete && <td className="py-2 text-right text-sm font-medium">{symbol}{(line.line_total ?? 0).toFixed(2)}</td>}
+                  {!isAthlete && (
+                    <td className="py-2 text-right text-sm font-medium">
+                      {line.list_price && line.list_price > line.final_unit_price && (
+                        <span className="line-through text-neutral-400 text-xs mr-1">{symbol}{line.list_price.toFixed(2)}</span>
+                      )}
+                      {symbol}{(line.line_total ?? 0).toFixed(2)}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -173,7 +187,6 @@ function OrderCard({ orderId, customerId, orderDate, status, title, subtitle, cu
       {editingOrder && (
         <OrderEditor
           orderId={orderId}
-          customerId={customerId}
           initialLines={currentLines}
           currency={currency ?? 'GBP'}
           onClose={() => setEditingOrder(false)}
@@ -966,7 +979,7 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
           {wholesaleOrders.length === 0
             ? <p className="text-sm text-neutral-400 text-center py-12">No wholesale orders yet.</p>
             : wholesaleOrders.map((order) => (
-              <OrderCard key={order.order_id} orderId={order.order_id} customerId={order.customer_id} orderDate={order.order_date}
+              <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
                 status={order.status} title={order.customerName} subtitle={order.customerEmail}
                 currency={order.currency} total={order.net_total} lines={order.order_lines} isAthlete={false}
                 loyaltyCreditApplied={order.loyalty_credit_applied} />
@@ -979,7 +992,7 @@ export default function AdminView({ wholesaleOrders, athleteOrders, customers, a
           {athleteOrders.length === 0
             ? <p className="text-sm text-neutral-400 text-center py-12">No athlete requests yet.</p>
             : athleteOrders.map((order) => (
-              <OrderCard key={order.order_id} orderId={order.order_id} customerId={order.customer_id} orderDate={order.order_date}
+              <OrderCard key={order.order_id} orderId={order.order_id} orderDate={order.order_date}
                 status={order.status} title={order.athleteName} subtitle={order.athleteEmail}
                 lines={order.order_lines} shippingAddress={order.shipping_address} isAthlete={true} />
             ))}
