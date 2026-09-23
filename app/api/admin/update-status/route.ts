@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // If cancelled, reverse loyalty if it was previously confirmed
-  if (status === 'cancelled' && order.status === 'confirmed') {
+  // If cancelled, reverse loyalty
+  if (status === 'cancelled' && order.status !== 'cancelled') {
     const { data: loyalty } = await serviceClient
       .from('customer_loyalty')
       .select('*')
@@ -108,9 +108,18 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (loyalty) {
-      const newTotalSpent = Math.max(0, loyalty.total_spent - order.net_total)
+      const loyaltyCreditUsed = order.loyalty_credit_applied ?? 0
+      const actualSpent = Math.max(0, order.net_total - loyaltyCreditUsed)
+
+      // 1. Reverse total_spent (only what was actually paid, not credit used)
+      const newTotalSpent = Math.max(0, (loyalty.total_spent ?? 0) - (order.status === 'confirmed' ? actualSpent : 0))
+
+      // 2. If loyalty credit was used on this order, return it to balance
+      const newBalance = (loyalty.credit_balance ?? 0) + loyaltyCreditUsed
+
       await serviceClient.from('customer_loyalty').update({
         total_spent: newTotalSpent,
+        credit_balance: newBalance,
         updated_at: new Date().toISOString(),
       }).eq('customer_id', order.customer_id)
     }
