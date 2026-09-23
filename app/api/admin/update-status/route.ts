@@ -143,6 +143,58 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // If athlete order cancelled, return credits
+  if (status === 'cancelled' && order.status !== 'cancelled') {
+    const { data: athlete } = await serviceClient
+      .from('athletes')
+      .select('athlete_id')
+      .eq('athlete_id', order.customer_id)
+      .maybeSingle()
+
+    if (athlete) {
+      const { data: orderLines } = await serviceClient
+        .from('order_lines')
+        .select('sku, qty')
+        .eq('order_id', orderId)
+
+      const { data: products } = await serviceClient
+        .from('products')
+        .select('sku, category')
+        .in('sku', (orderLines ?? []).map((l: any) => l.sku))
+
+      const CREDIT_MAP: Record<string, string> = {
+        Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
+        Apparel: 'accessories', Shoes: 'shoes', Padel: 'padel',
+      }
+
+      const creditsToReturn: Record<string, number> = {}
+      for (const line of orderLines ?? []) {
+        const prod = (products ?? []).find((p: any) => p.sku === line.sku)
+        if (prod) {
+          const field = CREDIT_MAP[prod.category]
+          if (field) creditsToReturn[field] = (creditsToReturn[field] ?? 0) + line.qty
+        }
+      }
+
+      const { data: currentCredits } = await serviceClient
+        .from('athlete_credits')
+        .select('sticks, bags, accessories, apparel, shoes, padel')
+        .eq('athlete_id', athlete.athlete_id)
+        .single()
+
+      if (currentCredits && Object.keys(creditsToReturn).length > 0) {
+        const updates: Record<string, number> = {}
+        for (const [field, qty] of Object.entries(creditsToReturn)) {
+          updates[field] = ((currentCredits as any)[field] ?? 0) + qty
+        }
+        await serviceClient
+          .from('athlete_credits')
+          .update(updates)
+          .eq('athlete_id', athlete.athlete_id)
+      }
+    }
+  }
+
   // Send email notification to customer
   const statusMessages: Record<string, { subject: string; message: string }> = {
     confirmed: {
