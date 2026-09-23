@@ -402,8 +402,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch current credits and subtract
-    const { data: currentCredits } = await supabase
+    // Fetch current credits and subtract (use serviceClient to bypass RLS)
+    const { data: currentCredits } = await serviceClient
       .from('athlete_credits')
       .select('*')
       .eq('athlete_id', customerId)
@@ -415,7 +415,7 @@ export async function POST(req: NextRequest) {
         updates[field] = Math.max(0, Math.max(0, (currentCredits[field] ?? 0)) - used)
       }
 
-      await supabase
+      await serviceClient
         .from('athlete_credits')
         .update(updates)
         .eq('athlete_id', customerId)
