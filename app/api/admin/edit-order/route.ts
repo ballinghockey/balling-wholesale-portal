@@ -188,12 +188,17 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
   }
 
   if (action === 'add_line') {
+    const { customerDiscountPct = 0, productPromoDiscountPct = 0, listPrice } = body
+    const finalUnitPrice = unitPrice  // unitPrice already has discounts applied from OrderEditor
     const { error } = await serviceClient
       .from('order_lines')
       .insert({
         order_id: orderId, sku, product_name: productName, size, qty,
-        list_price: unitPrice, customer_discount_pct: 0, promo_discount_pct: 0,
-        final_unit_price: unitPrice, line_total: qty * unitPrice,
+        list_price: listPrice ?? unitPrice,
+        customer_discount_pct: customerDiscountPct,
+        promo_discount_pct: productPromoDiscountPct,
+        final_unit_price: finalUnitPrice,
+        line_total: qty * finalUnitPrice,
       })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -338,6 +343,8 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const q = url.searchParams.get('q') ?? ''
+  const customerId = url.searchParams.get('customerId') ?? ''
+  const currency = url.searchParams.get('currency') ?? 'GBP'
 
   const serviceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -357,5 +364,56 @@ export async function GET(req: NextRequest) {
 
   const { data: products } = await query.limit(500)
 
-  return NextResponse.json({ products: products ?? [] })
+  // Fetch customer discounts and product promos if customerId provided
+  let discounts: Record<string, number> = {}
+  let productPromos: { product_group: string; discount_pct: number; start_date: string; end_date: string }[] = []
+
+  if (customerId) {
+    const { data: discountData } = await serviceClient
+      .from('customer_discounts')
+      .select('sticks_pct, bags_pct, accessories_pct, apparel_pct, shoes_pct')
+      .eq('customer_id', customerId)
+      .maybeSingle()
+
+    if (discountData) {
+      discounts = {
+        Sticks: discountData.sticks_pct ?? 0,
+        Bags: discountData.bags_pct ?? 0,
+        Accessories: discountData.accessories_pct ?? 0,
+        Apparel: discountData.apparel_pct ?? 0,
+        Shoes: discountData.shoes_pct ?? 0,
+        Padel: discountData.apparel_pct ?? 0,
+      }
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+    const { data: promoData } = await serviceClient
+      .from('product_promotions')
+      .select('product_group, discount_pct, start_date, end_date')
+      .eq('customer_id', customerId)
+      .eq('active', true)
+      .lte('start_date', today)
+      .gte('end_date', today)
+
+    productPromos = promoData ?? []
+  }
+
+  // Apply discounts to products
+  const today = new Date().toISOString().slice(0, 10)
+  const productsWithPrices = (products ?? []).map((p: any) => {
+    const basePrice = currency === 'GBP' ? p.base_price_gbp : p.base_price_eur
+    const customerDiscountPct = discounts[p.category] ?? 0
+    const promo = productPromos.find((pp: any) => pp.product_group === p.product_group)
+    const productPromoDiscountPct = promo?.discount_pct ?? 0
+    const totalDiscount = Math.min(customerDiscountPct + productPromoDiscountPct, 100)
+    const finalPrice = Math.round(basePrice * (1 - totalDiscount / 100) * 100) / 100
+    return {
+      ...p,
+      finalPrice,
+      customerDiscountPct,
+      productPromoDiscountPct,
+    }
+  })
+
+  return NextResponse.json({ products: productsWithPrices })
 }
