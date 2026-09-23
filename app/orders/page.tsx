@@ -36,6 +36,7 @@ export default async function OrdersPage() {
         grand_total,
         vat_total,
         status,
+        loyalty_credit_applied,
         order_lines (
           id,
           sku,
@@ -76,6 +77,7 @@ export default async function OrdersPage() {
       grand_total,
       vat_total,
       status,
+      loyalty_credit_applied,
       order_lines (
         id,
         sku,
