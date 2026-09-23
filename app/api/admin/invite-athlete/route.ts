@@ -65,29 +65,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: athleteError.message }, { status: 500 })
   }
 
+  const creditsData = {
+    athlete_id,
+    sticks: parseInt(credits_sticks) || 0,
+    bags: parseInt(credits_bags) || 0,
+    accessories: parseInt(credits_accessories) || 0,
+    apparel: 0,
+    shoes: parseInt(credits_shoes) || 0,
+    padel: parseInt(credits_padel) || 0,
+  }
+
   // Create credits
   const { error: creditsError } = await serviceClient
     .from('athlete_credits')
-    .insert({
-      athlete_id,
-      sticks: parseInt(credits_sticks) || 0,
-      bags: parseInt(credits_bags) || 0,
-      accessories: parseInt(credits_accessories) || 0,
-      apparel: 0,
-      shoes: parseInt(credits_shoes) || 0,
-      padel: parseInt(credits_padel) || 0,
-    })
+    .insert(creditsData)
 
   if (creditsError) {
     return NextResponse.json({ error: creditsError.message }, { status: 500 })
   }
+
+  // Save original credits (never changes)
+  await serviceClient
+    .from('athlete_credits_original')
+    .insert(creditsData)
 
   // Generate invite link
   const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
     type: 'invite',
     email,
     options: {
-      redirectTo: `${process.env.APP_URL ?? 'https://portal.ballinghockey.com'}/set-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://balling-wholesale-portal.vercel.app'}/set-password`,
       data: { athlete_id, type: 'athlete' },
     }
   })
