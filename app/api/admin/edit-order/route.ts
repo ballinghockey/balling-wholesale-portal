@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { data: finalLines } = await serviceClient
-        .from('order_lines').select('product_name, size, qty, final_unit_price, line_total').eq('order_id', orderId)
+        .from('order_lines').select('product_name, size, qty, list_price, customer_discount_pct, promo_discount_pct, final_unit_price, line_total').eq('order_id', orderId)
 
       const netTotal = (finalLines ?? []).reduce((s: number, l: any) => s + (l.line_total ?? 0), 0)
 
@@ -138,12 +138,16 @@ export async function POST(req: NextRequest) {
           `<li style="padding:4px 0;font-size:13px;color:#333">${c}</li>`
         ).join('')
 
-        const linesHtml = (finalLines ?? []).map((l: any) => `
-          <tr>
-            <td style="padding:8px 16px;font-size:13px;color:#333">${l.product_name} · ${l.size}</td>
+        const linesHtml = (finalLines ?? []).map((l: any) => {
+          const discountInfo = !isAthlete && (l.customer_discount_pct > 0 || l.promo_discount_pct > 0)
+            ? `<div style="font-size:11px;margin-top:2px">${l.customer_discount_pct > 0 ? `<span style="color:#059669">${l.customer_discount_pct}% commercial</span>` : ''}${l.customer_discount_pct > 0 && l.promo_discount_pct > 0 ? ' · ' : ''}${l.promo_discount_pct > 0 ? `<span style="color:#2563eb">+${l.promo_discount_pct}% promo</span>` : ''}</div>`
+            : ''
+          return `<tr>
+            <td style="padding:8px 16px;font-size:13px;color:#333">${l.product_name} · ${l.size}${discountInfo}</td>
             <td style="padding:8px 16px;font-size:13px;color:#333;text-align:center">${l.qty}</td>
             ${!isAthlete ? `<td style="padding:8px 16px;font-size:13px;color:#333;text-align:right">${symbol}${(l.line_total ?? 0).toFixed(2)}</td>` : ''}
-          </tr>`).join('')
+          </tr>`
+        }).join('')
 
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">
@@ -206,7 +210,7 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
   // Recalculate order totals
   const { data: allLines } = await serviceClient
     .from('order_lines')
-    .select('sku, product_name, size, qty, final_unit_price, line_total')
+    .select('sku, product_name, size, qty, list_price, customer_discount_pct, promo_discount_pct, final_unit_price, line_total')
     .eq('order_id', orderId)
 
   const netTotal = (allLines ?? []).reduce((sum, l) => sum + (l.line_total ?? 0), 0)
@@ -271,13 +275,18 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
     if (customerEmail) {
       const isAthlete = !customer
 
-      const linesHtml = (allLines ?? []).map(l => [
-        '<tr>',
-        `<td style="padding:8px 16px;font-size:13px;color:#333">${l.product_name} · ${l.size}</td>`,
-        `<td style="padding:8px 16px;font-size:13px;color:#333;text-align:center">${l.qty}</td>`,
-        !isAthlete ? `<td style="padding:8px 16px;font-size:13px;color:#333;text-align:right">${symbol}${(l.line_total ?? 0).toFixed(2)}</td>` : '',
-        '</tr>',
-      ].join('')).join('')
+      const linesHtml = (allLines ?? []).map((l: any) => {
+        const discountInfo = !isAthlete && (l.customer_discount_pct > 0 || l.promo_discount_pct > 0)
+          ? `<div style="font-size:11px;margin-top:2px">${l.customer_discount_pct > 0 ? `<span style="color:#059669">${l.customer_discount_pct}% commercial</span>` : ''}${l.customer_discount_pct > 0 && l.promo_discount_pct > 0 ? ' · ' : ''}${l.promo_discount_pct > 0 ? `<span style="color:#2563eb">+${l.promo_discount_pct}% promo</span>` : ''}</div>`
+          : ''
+        return [
+          '<tr>',
+          `<td style="padding:8px 16px;font-size:13px;color:#333">${l.product_name} · ${l.size}${discountInfo}</td>`,
+          `<td style="padding:8px 16px;font-size:13px;color:#333;text-align:center">${l.qty}</td>`,
+          !isAthlete ? `<td style="padding:8px 16px;font-size:13px;color:#333;text-align:right">${symbol}${(l.line_total ?? 0).toFixed(2)}</td>` : '',
+          '</tr>',
+        ].join('')
+      }).join('')
 
       const html = [
         '<!DOCTYPE html><html><head><meta charset="utf-8"></head>',
