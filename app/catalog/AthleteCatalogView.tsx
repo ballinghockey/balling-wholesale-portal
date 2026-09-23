@@ -74,7 +74,6 @@ export default function AthleteCatalogView({
   const creditKey = CREDIT_CATEGORY_MAP[activeCategory] ?? 'accessories'
   const totalCredit = credits[creditKey] ?? 0
   const originalTotal = (originalCredits?.[creditKey as keyof AthleteCredits] ?? totalCredit) as number
-  const originalTotal = originalCredits?.[creditKey] ?? totalCredit
   const usedInCategory = usedCredits[activeCategory.toLowerCase()] ?? 0
   const remainingCredit = totalCredit - usedInCategory
 
