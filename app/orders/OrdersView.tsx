@@ -212,6 +212,16 @@ export default function OrdersView({
                             </td>
                           </tr>
                         )}
+                        {!isAthlete && (
+                          <tr className="border-t border-neutral-200">
+                            <td colSpan={3} className="pt-3 text-right text-sm font-bold text-neutral-900">
+                              Total to pay
+                            </td>
+                            <td className="pt-3 text-right text-sm font-bold text-neutral-900">
+                              {symbol}{order.grand_total.toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
                       </tfoot>
                     </table>
                   </div>
