@@ -341,14 +341,7 @@ export default function AthleteCatalogView({
             {remainingCredit} of {originalTotal} remaining
           </div>
           <div className="flex gap-1">
-            {Array.from({ length: originalTotal }).map((_, i) => (
-              <div
-                key={i}
-                className={`w-4 h-4 rounded-sm ${
-                  i < usedInCategory ? 'bg-neutral-400' : 'bg-neutral-900'
-                }`}
-              />
-            ))}
+
           </div>
         </div>
       )}
