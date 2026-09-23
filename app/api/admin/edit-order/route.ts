@@ -77,16 +77,48 @@ export async function POST(req: NextRequest) {
             }
             const creditField = CREDIT_MAP[product.category]
             if (creditField) {
+              // Get current credits
               const { data: credits } = await serviceClient
                 .from('athlete_credits')
-                .select(creditField)
+                .select('sticks, bags, accessories, shoes, padel')
                 .eq('athlete_id', athlete.athlete_id)
                 .single()
 
               if (credits) {
+                // Calculate original credits = current + all used in this order for this category
+                const { data: orderLines } = await serviceClient
+                  .from('order_lines')
+                  .select('qty, sku')
+                  .eq('order_id', lineData.order_id)
+
+                // Get categories for all order lines
+                const orderSkus = (orderLines ?? []).map((l: any) => l.sku)
+                const { data: orderProducts } = await serviceClient
+                  .from('products')
+                  .select('sku, category')
+                  .in('sku', orderSkus)
+
+                const categoryQtyMap: Record<string, number> = {}
+                for (const line of orderLines ?? []) {
+                  const prod = (orderProducts ?? []).find((p: any) => p.sku === line.sku)
+                  if (prod) {
+                    const cf = CREDIT_MAP[prod.category]
+                    if (cf) categoryQtyMap[cf] = (categoryQtyMap[cf] ?? 0) + line.qty
+                  }
+                }
+
+                // Original credits = current + used in order (excluding the line being deleted)
+                const usedInOrder = categoryQtyMap[creditField] ?? 0
+                const originalCredits = ((credits as any)[creditField] ?? 0) + usedInOrder
+                // New value = current + returned qty, capped at original
+                const newValue = Math.min(
+                  originalCredits,
+                  ((credits as any)[creditField] ?? 0) + lineData.qty
+                )
+
                 await serviceClient
                   .from('athlete_credits')
-                  .update({ [creditField]: ((credits as any)[creditField] ?? 0) + lineData.qty })
+                  .update({ [creditField]: newValue })
                   .eq('athlete_id', athlete.athlete_id)
               }
             }
@@ -194,7 +226,7 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
 
   if (action === 'add_line') {
     const { customerDiscountPct = 0, productPromoDiscountPct = 0, listPrice } = body
-    const finalUnitPrice = unitPrice  // unitPrice already has discounts applied from OrderEditor
+    const finalUnitPrice = unitPrice
     const { error } = await serviceClient
       .from('order_lines')
       .insert({
@@ -206,6 +238,52 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
         line_total: qty * finalUnitPrice,
       })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // If athlete order, deduct credits for added line
+    const { data: addOrder } = await serviceClient
+      .from('order_requests')
+      .select('customer_id')
+      .eq('order_id', orderId)
+      .single()
+
+    if (addOrder) {
+      const { data: addAthlete } = await serviceClient
+        .from('athletes')
+        .select('athlete_id')
+        .eq('athlete_id', addOrder.customer_id)
+        .maybeSingle()
+
+      if (addAthlete) {
+        const { data: addProduct } = await serviceClient
+          .from('products')
+          .select('category')
+          .eq('sku', sku)
+          .maybeSingle()
+
+        if (addProduct) {
+          const CREDIT_MAP: Record<string, string> = {
+            Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
+            Apparel: 'accessories', Shoes: 'shoes', Padel: 'padel',
+          }
+          const creditField = CREDIT_MAP[addProduct.category]
+          if (creditField) {
+            const { data: addCredits } = await serviceClient
+              .from('athlete_credits')
+              .select(creditField)
+              .eq('athlete_id', addAthlete.athlete_id)
+              .single()
+
+            if (addCredits) {
+              const newValue = Math.max(0, ((addCredits as any)[creditField] ?? 0) - qty)
+              await serviceClient
+                .from('athlete_credits')
+                .update({ [creditField]: newValue })
+                .eq('athlete_id', addAthlete.athlete_id)
+            }
+          }
+        }
+      }
+    }
   }
 
   // Recalculate order totals
