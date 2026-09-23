@@ -276,6 +276,17 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Determine stock table based on currency
+  const stockTable = currency === 'GBP' ? 'stock_uk' : 'stock_eu'
+
+  // Get SKUs with stock > 0
+  const { data: stockData } = await serviceClient
+    .from(stockTable)
+    .select('sku')
+    .gt('stock', 0)
+
+  const skusWithStock = new Set((stockData ?? []).map((s: any) => s.sku))
+
   let query = serviceClient
     .from('products')
     .select('sku, product_name, product_group, size, base_price_gbp, base_price_eur, category, subcategory')
@@ -287,7 +298,22 @@ export async function GET(req: NextRequest) {
     query = query.or(`sku.ilike.%${q}%,product_name.ilike.%${q}%`)
   }
 
-  const { data: products } = await query.limit(500)
+  const { data: allProducts } = await query.limit(500)
+
+  // Filter to only products with stock and include stock qty
+  const stockMap = new Map((stockData ?? []).map((s: any) => [s.sku, s.stock]))
+
+  // Re-fetch with stock qty
+  const { data: stockWithQty } = await serviceClient
+    .from(stockTable)
+    .select('sku, stock')
+    .gt('stock', 0)
+
+  const stockQtyMap = new Map((stockWithQty ?? []).map((s: any) => [s.sku, s.stock]))
+
+  const products = (allProducts ?? [])
+    .filter((p: any) => skusWithStock.has(p.sku))
+    .map((p: any) => ({ ...p, stock: stockQtyMap.get(p.sku) ?? 0 }))
 
   // Fetch customer discounts and product promos if customerId provided
   let discounts: Record<string, number> = {}
