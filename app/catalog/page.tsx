@@ -50,17 +50,24 @@ export default async function CatalogPage() {
       usedCredits[cat] = (usedCredits[cat] ?? 0) + row.qty
     }
 
-    // Calculate total assigned credits = current + used in ALL orders (including cancelled)
-    // This keeps the total stable - cancelling doesn't reduce the right number
-    const { data: allOrders } = await supabase
+    // Calculate total = current available + used in active (non-cancelled) orders
+    // This is mathematically stable:
+    // - edit qty: available +/-N, order lines -/+N => total unchanged
+    // - cancel: credits returned to available, order excluded => total unchanged
+    const { data: activeOrders } = await supabase
       .from('order_requests')
       .select('order_id')
       .eq('customer_id', athlete.athlete_id)
+      .not('status', 'eq', 'cancelled')
 
-    const { data: activeOrderLines } = await supabase
-      .from('order_lines')
-      .select('qty, sku, products(category)')
-      .in('order_id', allOrders?.map((r: any) => r.order_id) ?? [])
+    const activeOrderIds = activeOrders?.map((r: any) => r.order_id) ?? []
+
+    const { data: activeOrderLines } = activeOrderIds.length > 0
+      ? await supabase
+          .from('order_lines')
+          .select('qty, sku, products(category)')
+          .in('order_id', activeOrderIds)
+      : { data: [] }
 
     const CREDIT_MAP: Record<string, string> = {
       Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
