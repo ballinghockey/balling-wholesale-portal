@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 
+const CREDIT_MAP: Record<string, string> = {
+  Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
+  Apparel: 'accessories', Shoes: 'shoes', Padel: 'padel',
+}
+
+// delta > 0 = return credits to athlete, delta < 0 = deduct credits from athlete
+async function adjustAthleteCredits(serviceClient: any, orderId: string, sku: string, delta: number) {
+  const { data: order } = await serviceClient
+    .from('order_requests').select('customer_id').eq('order_id', orderId).single()
+  if (!order) return
+
+  const { data: athlete } = await serviceClient
+    .from('athletes').select('athlete_id').eq('athlete_id', order.customer_id).maybeSingle()
+  if (!athlete) return
+
+  const { data: product } = await serviceClient
+    .from('products').select('category').eq('sku', sku).maybeSingle()
+  if (!product) return
+
+  const creditField = CREDIT_MAP[product.category]
+  if (!creditField) return
+
+  const { data: credits } = await serviceClient
+    .from('athlete_credits').select(creditField).eq('athlete_id', athlete.athlete_id).single()
+  if (!credits) return
+
+  const current = (credits as any)[creditField] ?? 0
+  const newValue = Math.max(0, current + delta)
+  await serviceClient
+    .from('athlete_credits')
+    .update({ [creditField]: newValue })
+    .eq('athlete_id', athlete.athlete_id)
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: authData } = await supabase.auth.getUser()
@@ -30,18 +64,28 @@ export async function POST(req: NextRequest) {
   )
 
   if (action === 'update_qty') {
-    // Just update the qty - do NOT touch athlete_credits
-    // Display X/Y = available + in_active_orders (calculated dynamically in catalog page)
+    const { data: oldLine } = await serviceClient
+      .from('order_lines')
+      .select('qty, sku, order_id')
+      .eq('id', lineId)
+      .single()
+
     const { error } = await serviceClient
       .from('order_lines')
       .update({ qty, line_total: qty * unitPrice })
       .eq('id', lineId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Adjust credits: added more = deduct (delta negative), reduced = return (delta positive)
+    if (oldLine) {
+      const qtyDiff = qty - oldLine.qty
+      if (qtyDiff !== 0) {
+        await adjustAthleteCredits(serviceClient, oldLine.order_id, oldLine.sku, -qtyDiff)
+      }
+    }
   }
 
   if (action === 'delete_line') {
-    // Just delete the line - do NOT touch athlete_credits
-    // The line disappearing from active orders is reflected automatically in the X/Y display
     const { data: lineData } = await serviceClient
       .from('order_lines')
       .select('order_id, sku, qty')
@@ -53,6 +97,11 @@ export async function POST(req: NextRequest) {
       .delete()
       .eq('id', lineId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Return credits to athlete (positive delta = return)
+    if (lineData) {
+      await adjustAthleteCredits(serviceClient, lineData.order_id, lineData.sku, lineData.qty)
+    }
   }
 
   // Handle customer notification - send ONE email with all changes
@@ -152,8 +201,6 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
   }
 
   if (action === 'add_line') {
-    // Just add the line - do NOT touch athlete_credits
-    // The new line appearing in active orders is reflected automatically in the X/Y display
     const { customerDiscountPct = 0, productPromoDiscountPct = 0, listPrice } = body
     const finalUnitPrice = unitPrice
     const { error } = await serviceClient
@@ -167,6 +214,73 @@ Questions? <a href="mailto:admin@ballinghockey.com" style="color:#666">admin@bal
         line_total: qty * finalUnitPrice,
       })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // If athlete order, deduct credits for added line
+    const { data: addOrder } = await serviceClient
+      .from('order_requests')
+      .select('customer_id')
+      .eq('order_id', orderId)
+      .single()
+
+    if (addOrder) {
+      const { data: addAthlete } = await serviceClient
+        .from('athletes')
+        .select('athlete_id')
+        .eq('athlete_id', addOrder.customer_id)
+        .maybeSingle()
+
+      if (addAthlete) {
+        const { data: addProduct } = await serviceClient
+          .from('products')
+          .select('category')
+          .eq('sku', sku)
+          .maybeSingle()
+
+        if (addProduct) {
+          const CREDIT_MAP: Record<string, string> = {
+            Sticks: 'sticks', Bags: 'bags', Accessories: 'accessories',
+            Apparel: 'accessories', Shoes: 'shoes', Padel: 'padel',
+          }
+          const creditField = CREDIT_MAP[addProduct.category]
+          if (creditField) {
+            const { data: addCredits } = await serviceClient
+              .from('athlete_credits')
+              .select(creditField)
+              .eq('athlete_id', addAthlete.athlete_id)
+              .single()
+
+            if (addCredits) {
+              const currentVal = (addCredits as any)[creditField] ?? 0
+              console.log('[add_line] creditField:', creditField, 'current:', currentVal, 'deducting:', qty)
+              const newValue = Math.max(0, currentVal - qty)
+              await serviceClient
+                .from('athlete_credits')
+                .update({ [creditField]: newValue })
+                .eq('athlete_id', addAthlete.athlete_id)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (action === 'add_line') {
+    const { customerDiscountPct = 0, productPromoDiscountPct = 0, listPrice } = body
+    const finalUnitPrice = unitPrice
+    const { error } = await serviceClient
+      .from('order_lines')
+      .insert({
+        order_id: orderId, sku, product_name: productName, size, qty,
+        list_price: listPrice ?? unitPrice,
+        customer_discount_pct: customerDiscountPct,
+        promo_discount_pct: productPromoDiscountPct,
+        final_unit_price: finalUnitPrice,
+        line_total: qty * finalUnitPrice,
+      })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Deduct credits from athlete (negative delta = deduct)
+    await adjustAthleteCredits(serviceClient, orderId, sku, -qty)
   }
 
   // Recalculate order totals
