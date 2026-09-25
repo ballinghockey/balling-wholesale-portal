@@ -41,6 +41,7 @@ export type Product = {
   rrp_gbp?: number
   rrp_eur?: number
   image_url: string
+  no_discount?: boolean
 }
 
 const CATEGORY_FIELD_MAP: Record<Category, keyof CustomerDiscounts> = {
@@ -119,6 +120,20 @@ export function calculatePrice(
 
   // Wholesale pricing — discounts are summed (not compounded)
   const listPrice = customer.currency === 'GBP' ? product.base_price_gbp : product.base_price_eur
+
+  // Some products have no_discount = true (e.g. Protouch) — no discounts ever applied
+  if (product.no_discount) {
+    return {
+      listPrice,
+      currency: customer.currency,
+      customerDiscountPct: 0,
+      promoDiscountPct: 0,
+      finalUnitPrice: Math.round(listPrice * 100) / 100,
+      displayPrice: `${symbol}${listPrice.toFixed(2)}`,
+      isClub: false,
+    }
+  }
+
   const customerDiscountPct = getCustomerDiscountForCategory(discounts, product.category)
   const promoDiscountPct = getActivePromoDiscount(promotions, product.category, today)
   const totalDiscountPct = Math.min(customerDiscountPct + promoDiscountPct + productPromoDiscountPct, 100)
